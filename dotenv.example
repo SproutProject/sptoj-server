@@ -1,0 +1,7 @@
+DBHOST="localhost"
+DBPORT="5432"
+DBNAME="sptoj"
+DBUSER="sptoj"
+DBPASSWD="1234"
+REDISHOST="localhost"
+REDISPORT="6379"
