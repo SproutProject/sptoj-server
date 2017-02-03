@@ -1,13 +1,23 @@
 '''User model module'''
 
 
-import secrets
 import bcrypt
-from schema import User
-from . import ScopedSession, ScopedRedis
+import secrets
+from . import BaseModel, model_context
+from sqlalchemy import Table, Column, Integer, String
 
 
-async def create(mail, password):
+class UserModel(BaseModel):
+
+    table = Table('user', BaseModel.metadata,
+        Column('uid', Integer, primary_key=True),
+        Column('mail', String, index=True, unique=True),
+        Column('password', String)
+    )
+
+
+@model_context
+async def create(mail, password, conn):
     '''Create a user.
     
     Args:
@@ -15,28 +25,24 @@ async def create(mail, password):
         password (string): User password.
 
     Returns:
-        User | None
+        UserModel | None
     
     '''
 
     hashpw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
     hashpw = hashpw.decode('utf-8')
 
-    session = ScopedSession()
     try:
-        user = User(mail=mail, password=hashpw)
-        session.add(user)
-        session.commit()
-        return user
+        user = UserModel(mail=mail, password=hashpw)
+        async with conn.begin() as trans:
+            await conn.execute(user.save())
 
+        return user
     except:
-        session.rollback()
         return None
 
-    finally:
-        session.close()
 
-
+"""
 async def get(uid):
     '''Get the user.
 
@@ -54,6 +60,7 @@ async def get(uid):
 
     finally:
         session.close()
+
 
 async def get_token(mail, password):
     '''Check if the mail and password match, then generate a new token.
@@ -118,3 +125,4 @@ async def acquire(token):
 
     finally:
         session.close()
+"""

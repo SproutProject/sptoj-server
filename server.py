@@ -1,7 +1,6 @@
 '''Main server program'''
 
 
-import view.user
 import asyncio
 import tornado.web
 import tornado.platform.asyncio
@@ -12,10 +11,10 @@ def create_application():
     '''Create the main application.'''
 
     return tornado.web.Application([
-        (r'/user/register', view.user.RegisterHandler),
-        (r'/user/login', view.user.LoginHandler),
-        (r'/user/get', view.user.GetHandler),
-        (r'/user/get/(\d+)', view.user.GetHandler),
+        #(r'/user/register', view.user.RegisterHandler),
+        #(r'/user/login', view.user.LoginHandler),
+        #(r'/user/get', view.user.GetHandler),
+        #(r'/user/get/(\d+)', view.user.GetHandler),
     ])
 
 
