@@ -3,12 +3,12 @@
 
 import bcrypt
 import secrets
-import sqlalchemy as sa
 from sqlalchemy import Table, Column, Integer, String
 from . import BaseModel, model_context
 
 
 class UserModel(BaseModel):
+    '''User model.'''
 
     table = Table('user', BaseModel.metadata,
         Column('uid', Integer, primary_key=True),

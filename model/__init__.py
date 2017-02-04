@@ -17,7 +17,7 @@ class ShadowMeta(type):
         raise AttributeError
 
 
-class ShadowExpr:
+class ShadowExpr(object):
     def __init__(self, expr, typ=None):
 
         self.expr = expr
@@ -57,7 +57,7 @@ class ShadowExpr:
         return ShadowResult(results, self.typ)
 
 
-class ShadowResult:
+class ShadowResult(object):
 
     def __init__(self, results, typ):
 
@@ -87,7 +87,7 @@ class ShadowResult:
             return self.typ(result)
 
 
-class BaseModel(metaclass=ShadowMeta):
+class BaseModel(object, metaclass=ShadowMeta):
 
     metadata = MetaData()
 
@@ -127,18 +127,20 @@ class BaseModel(metaclass=ShadowMeta):
         self._fields[name] = value
 
     async def save(self, conn):
-
         fields = dict(self._fields)
-        del fields[self._pkey.name]
+        if fields[self._pkey.name] is None:
+            del fields[self._pkey.name]
 
-        pval = self._fields[self._pkey.name]
-        table = self.table
-        if pval is None:
-            expr = table.insert().values(**fields)
-        else:
-            expr = table.update().where(self._pkey == pval).values(**fields)
+        expr = (sa.dialects.postgresql.insert(self.table)
+            .values(**fields)
+            .on_conflict_do_update(
+                index_elements=[self._pkey],
+                set_=fields
+            )).returning(self._pkey)
 
-        return await conn.execute(expr)
+        pval = await (await conn.execute(expr)).scalar()
+        assert pval is not None
+        self._fields[self._pkey.name] = pval
 
     async def delete(self, conn):
 
@@ -146,7 +148,7 @@ class BaseModel(metaclass=ShadowMeta):
         if pval is None:
             raise AttributeError
 
-        return conn.execute(self.table.delete().where(self._pkey == pval))
+        await conn.execute(self.table.delete().where(self._pkey == pval))
 
     @classmethod
     def select(cls):

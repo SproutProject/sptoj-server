@@ -8,7 +8,7 @@ import redis
 import tornado.web
 
 
-class Attribute:
+class Attribute(object):
     '''Dummy interface attribute class.'''
 
     def __get__(self, instance, objtype=None):
@@ -22,7 +22,7 @@ class Attribute:
         self.value = value
 
 
-class Interface:
+class Interface(object):
     '''Dummy interface class.'''
 
 

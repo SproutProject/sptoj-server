@@ -1,5 +1,7 @@
+'''User model unittest'''
+
+
 import tests
-from model import *
 from model.user import *
 from unittest import TestCase
 
@@ -11,7 +13,9 @@ class TestCreate(TestCase):
     async def test_create(self):
         '''Test create.'''
 
-        self.assertIsInstance(await create('foo', '1234'), UserModel)
+        user = await create('foo', '1234')
+        self.assertIsInstance(user, UserModel)
+        self.assertEqual(user.uid, 1)
 
     @tests.async_test
     async def test_exist(self):
