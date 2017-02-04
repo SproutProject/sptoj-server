@@ -6,6 +6,7 @@ import model
 import asyncio
 import tornado.platform.asyncio
 import aiopg.sa
+import redis
 
 
 # Install AsyncIO to tornado's IOLoop.
@@ -24,10 +25,14 @@ def async_test(func):
         async def async_lambda():
             '''Async lambda function.'''
 
+            rsconn = redis.StrictRedis.from_url(config.REDIS_URL)
+
             async with aiopg.sa.create_engine(config.DB_URL) as engine:
                 async with engine.acquire() as conn:
-                    asyncio.Task.current_task()._conn = conn
-                    await func(*args, **kwargs, conn=conn)
+                    task = asyncio.Task.current_task()
+                    task._conn = conn
+                    task._redis = rsconn
+                    await func(*args, **kwargs)
 
         loop = asyncio.get_event_loop()
         loop.run_until_complete(loop.create_task(async_lambda()))

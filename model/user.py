@@ -3,8 +3,9 @@
 
 import bcrypt
 import secrets
-from . import BaseModel, model_context
+import sqlalchemy as sa
 from sqlalchemy import Table, Column, Integer, String
+from . import BaseModel, model_context
 
 
 class UserModel(BaseModel):
@@ -16,8 +17,17 @@ class UserModel(BaseModel):
     )
 
 
+
+class TestModel(BaseModel):
+
+    table = Table('test', BaseModel.metadata,
+        Column('uid', Integer, primary_key=True),
+        Column('user_uid', Integer, sa.ForeignKey("user.uid")),
+    )
+
+
 @model_context
-async def create(mail, password, conn):
+async def create(mail, password, ctx):
     '''Create a user.
     
     Args:
@@ -29,11 +39,12 @@ async def create(mail, password, conn):
     
     '''
 
-    hashpw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+    hashpw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(12))
     hashpw = hashpw.decode('utf-8')
 
     try:
         user = UserModel(mail=mail, password=hashpw)
+        conn = ctx.conn
         async with conn.begin() as trans:
             await conn.execute(user.save())
 
@@ -42,27 +53,21 @@ async def create(mail, password, conn):
         return None
 
 
-"""
-async def get(uid):
-    '''Get the user.
+@model_context
+async def modify(uid, password, ctx):
 
-    Args:
-        uid (int): User uid.
+    hashpw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(12))
+    hashpw = hashpw.decode('utf-8')
 
-    Returns:
-        User | None
-
-    '''
-
-    session = ScopedSession()
-    try:
-        return session.query(User).filter_by(uid=uid).scalar()
-
-    finally:
-        session.close()
+    conn = ctx.conn
+    async with conn.begin() as trans:
+        pass
+        #print(sa.select([UserModel]).select_from(UserModel.join(UserModel)))
+        #print(sa.select([UserModel]).where(UserModel.uid == uid).as_scalar())
 
 
-async def get_token(mail, password):
+@model_context
+async def gen_token(mail, password, ctx):
     '''Check if the mail and password match, then generate a new token.
 
     Args:
@@ -70,59 +75,66 @@ async def get_token(mail, password):
         password (string): User password.
 
     Returns:
-        string | None
+        String | None
 
     '''
 
-    session = ScopedSession()
-    rsdb = ScopedRedis()
-    try:
-        user = session.query(User).filter_by(mail=mail).scalar()
-        match = bcrypt.checkpw(password.encode('utf-8'),
-            user.password.encode('utf-8'))
-        if not match:
-            return None
-        
-        token = None
-        while True:
-            token = secrets.token_hex(16)
-            if rsdb.setnx('TOKEN@{}'.format(token), user.uid):
-                break
-
-        return token
-
-    except:
+    user = await (await UserModel.select()
+        .where(UserModel.mail == mail)
+        .execute(ctx.conn)).first()
+    if user is None:
         return None
 
-    finally:
-        session.close()
+    match = bcrypt.checkpw(password.encode('utf-8'),
+        user.password.encode('utf-8'))
+    if not match:
+        return None
+    
+    token = None
+    while True:
+        token = secrets.token_hex(16)
+        if ctx.redis.setnx('TOKEN@{}'.format(token), user.uid):
+            break
+
+    return token
 
 
-async def acquire(token):
+@model_context
+async def get(uid, ctx):
+    '''Get the user.
+
+    Args:
+        uid (int): User uid.
+
+    Returns:
+        UserModel | None
+
+    '''
+
+    return await (await UserModel.select()
+        .where(UserModel.uid == uid)
+        .execute(ctx.conn)).first()
+
+
+@model_context
+async def acquire(token, ctx):
     '''Get user from token.
     
     Args:
         token (string): Token.
 
     Returns:
-        schema.User | None
+        UserModel | None
     
     '''
 
-    rsdb = ScopedRedis()
-    uid = rsdb.get('TOKEN@{:032x}'.format(int(token, 16)))
+    uid = ctx.redis.get('TOKEN@{:032x}'.format(int(token, 16)))
     if uid is None:
         return None
 
     uid = int(uid)
 
-    session = ScopedSession()
-    try:
-        return await get(uid)
+    return await (await UserModel.select()
+        .where(UserModel.uid == uid)
+        .execute(ctx.conn)).first()
 
-    except:
-        return None
-
-    finally:
-        session.close()
-"""

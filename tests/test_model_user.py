@@ -1,8 +1,6 @@
-'''User model unittest'''
-
-
 import tests
-import model.user
+from model import *
+from model.user import *
 from unittest import TestCase
 
 
@@ -13,14 +11,14 @@ class TestCreate(TestCase):
     async def test_create(self):
         '''Test create.'''
 
-        self.assertNotEqual(await model.user.create('foo', '1234'), None)
+        self.assertIsInstance(await create('foo', '1234'), UserModel)
 
     @tests.async_test
     async def test_exist(self):
         '''Test duplicated user.'''
 
-        self.assertNotEqual(await model.user.create('foo', '1234'), None)
-        self.assertEqual(await model.user.create('foo', '1234'), None)
+        self.assertIsInstance(await create('foo', '1234'), UserModel)
+        self.assertIsNone(await create('foo', '1234'))
 
 
 class TestToken(TestCase):
@@ -30,21 +28,21 @@ class TestToken(TestCase):
     async def test_get_token(self):
         '''Test get token.'''
 
-        self.assertNotEqual(await model.user.create('foo', '1234'), None)
-        self.assertNotEqual(await model.user.get_token('foo', '1234'), None)
-        self.assertEqual(await model.user.get_token('foo', '12345'), None)
-        self.assertEqual(await model.user.get_token('bar', '1234'), None)
-        self.assertEqual(await model.user.get_token('bar', '12345'), None)
+        self.assertIsInstance(await create('foo', '1234'), UserModel)
+        self.assertIsNotNone(await gen_token('foo', '1234'))
+        self.assertIsNone(await gen_token('foo', '12345'))
+        self.assertIsNone(await gen_token('bar', '1234'))
+        self.assertIsNone(await gen_token('bar', '12345'))
 
     @tests.async_test
     async def test_acquire(self):
         '''Test get user from token.'''
 
-        self.assertNotEqual(await model.user.create('foo', '1234'), None)
-        token = await model.user.get_token('foo', '1234')
-        self.assertNotEqual(token, None)
+        self.assertIsInstance(await create('foo', '1234'), UserModel)
+        token = await gen_token('foo', '1234')
+        self.assertIsNotNone(token)
 
-        user = await model.user.acquire(token)
-        self.assertNotEqual(user, None)
+        user = await acquire(token)
+        self.assertIsNotNone(user)
         self.assertEqual(user.mail, 'foo')
-        self.assertEqual(await model.user.acquire('deadbeef'), None)
+        self.assertIsNone(await acquire('deadbeef'))

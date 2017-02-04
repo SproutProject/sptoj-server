@@ -8,32 +8,111 @@ import sqlalchemy as sa
 from sqlalchemy import MetaData
 
 
-class BaseModel:
+class ShadowMeta(type):
 
-    metadata = MetaData()
+    def __getattr__(self, name):
+        if name in self.table.columns:
+            return self.table.columns[name]
 
-    def __init__(self, **kwargs):
+        raise AttributeError
 
-        object.__setattr__(self, '_fields', {})
 
-        pkey = None
-        for column in self.table.columns:
-            if column.primary_key:
-                pkey = column
+class ShadowExpr:
+    def __init__(self, expr, typ=None):
 
-            value = None
-            if column.name in kwargs:
-                value = kwargs[column.name]
-            elif not column.primary_key:
-                raise AttributeError
-
-            self._fields[column.name] = value
-
-        assert pkey is not None
-        object.__setattr__(self, '_pkey', pkey)
+        self.expr = expr
+        self.typ = typ
 
     def __getattr__(self, name):
 
+        func = getattr(self.expr, name)
+
+        def wrapper(*args, **kwargs):
+            '''Wrapper.'''
+
+            proxy_args = []
+            for value in args:
+                proxy_args.append(self.proxy_value(value))
+
+            proxy_kwargs = {}
+            for key, value in kwargs.items():
+                proxy_kwargs[key] = self.proxy_value(value)
+
+            return ShadowExpr(func(*proxy_args, **proxy_kwargs), typ=self.typ)
+
+        return wrapper
+
+    def proxy_value(self, value):
+
+        if isinstance(value, ShadowExpr):
+            return value.expr
+        elif isinstance(value, ShadowMeta):
+            return value.table
+
+        return value
+
+    async def execute(self, conn):
+        results = await conn.execute(self.expr)
+        return ShadowResult(results, self.typ)
+
+
+class ShadowResult:
+
+    def __init__(self, results, typ):
+
+        self.results = results
+        self.typ = typ
+
+    def __aiter__(self):
+
+        return self
+
+    async def __anext__(self):
+
+        result = await self.results.fetchone()
+        if result is None:
+            raise StopAsyncIteration
+        
+        return self.typ(result)
+
+    async def first(self):
+
+        result = await self.results.fetchone()
+        self.results.close()
+
+        if result is None:
+            return None
+        else:
+            return self.typ(result)
+
+
+class BaseModel(metaclass=ShadowMeta):
+
+    metadata = MetaData()
+
+    def __init__(self, _result_obj=None, **kwargs):
+
+        if _result_obj is not None:
+            fields = dict((column.name, _result_obj[column])
+                for column in self.table.columns)
+        else:
+            fields = {}
+            for column in self.table.columns:
+                value = None
+                try:
+                    value = kwargs[column.name]
+                except KeyError:
+                    if not column.primary_key:
+                        raise AttributeError
+                
+                fields[column.name] = value
+
+        object.__setattr__(self, '_fields', fields)
+
+        object.__setattr__(self, '_pkey',
+            next(column for column in self.table.columns if column.primary_key))
+
+    def __getattr__(self, name):
         if name not in self._fields:
             raise AttributeError
 
@@ -66,14 +145,35 @@ class BaseModel:
 
         return self.table.delete().where(self._pkey == pval)
 
+    @classmethod
+    def select(cls):
+
+        return ShadowExpr(cls.table.select(), typ=cls)
+
+    @classmethod
+    def join(cls, other, *args, **kwargs):
+
+        return ShadowExpr(cls.table.join(other.table, *args, **kwargs))
+
+
+def select(model_list):
+
+    return ShadowExpr(sa.select([model.table for model in model_list]))
+
 
 def model_context(func):
+
+    class Context:
+        def __init__(self, conn, redis):
+            self.conn = conn
+            self.redis = redis
 
     async def wrapper(*args, **kwargs):
         '''Wrapper.'''
 
-        conn = asyncio.Task.current_task()._conn
-        return await func(*args, **kwargs, conn=conn)
+        task = asyncio.Task.current_task()
+        ctx = Context(task._conn, task._redis)
+        return await func(*args, **kwargs, ctx=ctx)
 
     return wrapper
 
