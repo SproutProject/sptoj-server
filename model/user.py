@@ -17,15 +17,6 @@ class UserModel(BaseModel):
     )
 
 
-
-class TestModel(BaseModel):
-
-    table = Table('test', BaseModel.metadata,
-        Column('uid', Integer, primary_key=True),
-        Column('user_uid', Integer, sa.ForeignKey("user.uid")),
-    )
-
-
 @model_context
 async def create(mail, password, ctx):
     '''Create a user.
@@ -44,10 +35,7 @@ async def create(mail, password, ctx):
 
     try:
         user = UserModel(mail=mail, password=hashpw)
-        conn = ctx.conn
-        async with conn.begin() as trans:
-            await conn.execute(user.save())
-
+        await user.save(ctx.conn)
         return user
     except:
         return None

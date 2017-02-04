@@ -52,6 +52,7 @@ class ShadowExpr:
         return value
 
     async def execute(self, conn):
+
         results = await conn.execute(self.expr)
         return ShadowResult(results, self.typ)
 
@@ -125,7 +126,7 @@ class BaseModel(metaclass=ShadowMeta):
 
         self._fields[name] = value
 
-    def save(self):
+    async def save(self, conn):
 
         fields = dict(self._fields)
         del fields[self._pkey.name]
@@ -133,17 +134,19 @@ class BaseModel(metaclass=ShadowMeta):
         pval = self._fields[self._pkey.name]
         table = self.table
         if pval is None:
-            return table.insert().values(**fields)
+            expr = table.insert().values(**fields)
         else:
-            return table.update().where(self._pkey == pval).values(**fields)
+            expr = table.update().where(self._pkey == pval).values(**fields)
 
-    def delete(self):
+        return await conn.execute(expr)
+
+    async def delete(self, conn):
 
         pval = self._fields[self._pkey.name]
         if pval is None:
             raise AttributeError
 
-        return self.table.delete().where(self._pkey == pval)
+        return conn.execute(self.table.delete().where(self._pkey == pval))
 
     @classmethod
     def select(cls):

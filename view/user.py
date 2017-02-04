@@ -55,7 +55,7 @@ class LoginHandler(APIHandler):
 
         '''
 
-        token = await model.user.get_token(data['mail'], data['password'])
+        token = await model.user.gen_token(data['mail'], data['password'])
         if token is None:
             return 'Error'
 

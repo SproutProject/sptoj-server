@@ -1,10 +1,10 @@
 '''View base module'''
 
 
-import model
 import model.user
 import json
 import asyncio
+import redis
 import tornado.web
 
 
@@ -35,14 +35,26 @@ class ResponseEncoder(json.JSONEncoder):
         if isinstance(obj, Interface):
             return dict((key, ResponseEncoder.default(self, value.__get__(obj)))
                 for key, value in type(obj).__dict__.items()
-                    if isinstance(value, Attribute))
-
+                    if isinstance(value, Attribute)
+            )
         else:
             return obj
 
 
 class APIHandler(tornado.web.RequestHandler):
     '''API request handler.'''
+
+    def initialize(self, engine, redis_pool):
+        '''Initialize.
+        
+        Args:
+            engine (object): Database engine.
+            redis_pool (object): Redis connection pool.
+        
+        '''
+
+        self.engine = engine
+        self.redis_pool = redis_pool
 
     async def post(self, *args):
         '''Handle the API requests.
@@ -58,7 +70,12 @@ class APIHandler(tornado.web.RequestHandler):
         async def async_lambda():
             '''Async lambda function.'''
 
-            try:
+            async with self.engine.acquire() as conn:
+                # Setup model context.
+                task = asyncio.Task.current_task()
+                task._conn = conn
+                task._redis = redis.StrictRedis(connection_pool=self.redis_pool)
+
                 token = self.get_cookie('token')
                 if token is None:
                     self.user = None
@@ -72,10 +89,6 @@ class APIHandler(tornado.web.RequestHandler):
                 # Write the response.
                 self.set_header('content-type', 'application/json')
                 self.finish(json.dumps(response, cls=ResponseEncoder))
-
-            finally:
-                # Reset the scoped session.
-                model.ScopedSession.remove()
 
         loop = asyncio.get_event_loop()
         await loop.create_task(async_lambda())
