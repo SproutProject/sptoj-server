@@ -3,18 +3,38 @@
 
 from sqlalchemy import Table, Column, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
-from . import BaseModel, model_context
+from . import BaseModel, Relation, model_context
 
 
 class ProblemModel(BaseModel):
     '''Problem model.'''
-    
-    table = Table('problem', BaseModel._metadata,
-        Column('uid', Integer, primary_key=True),
-        Column('name', String, index=True),
-        Column('revision', String),
-        Column('metadata', JSONB),
-    )
+
+    __tablename__ = 'problem'
+
+    uid = Column('uid', Integer, primary_key=True)
+    name = Column('name', String, index=True)
+    revision = Column('revision', String)
+    metadata = Column('metadata', JSONB)
+
+
+class ProSetModel(BaseModel):
+    '''ProSet model.'''
+
+    __tablename__ = 'proset'
+
+    uid = Column('uid', Integer, primary_key=True)
+    name = Column('name', String, index=True)
+
+
+class ProItemModel(BaseModel):
+    '''ProItem model.'''
+
+    __tablename__ = 'proitem'
+
+    uid = Column('uid', Integer, primary_key=True)
+
+    parent = Relation(ProSetModel, back_populates='items')
+    problem = Relation(ProblemModel)
 
 
 @model_context
@@ -94,7 +114,7 @@ async def list(start_uid=0, limit=None, ctx=None):
         [PorblemModel]
 
     '''
-    
+
     query = ProblemModel.select().where(ProblemModel.uid >= start_uid)
     if limit is not None:
         query = query.limit(limit)
@@ -104,3 +124,21 @@ async def list(start_uid=0, limit=None, ctx=None):
         problems.append(problem)
 
     return problems
+
+
+@model_context
+async def test(ctx):
+    problem = await create(1000, 'deadbeef', { 'name': 'foo' })
+    proset = ProSetModel(name='square')
+    await proset.save(ctx.conn)
+    proitem = ProItemModel(parent=proset)
+    proitem.problem = problem
+    await proitem.save(ctx.conn)
+
+    results = await ProItemModel.select().where(ProItemModel.uid == proitem.uid).execute(ctx.conn)
+    proitem = await results.first()
+    print(proitem.uid, proitem.problem, proitem.parent)
+
+    results = await proitem.parent.items.execute(ctx.conn)
+    async for proitem in results:
+        print(proitem.uid)

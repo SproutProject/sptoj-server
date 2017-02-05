@@ -17,12 +17,12 @@ class UserLevel(enum.IntEnum):
 class UserModel(BaseModel):
     '''User model.'''
 
-    table = Table('user', BaseModel._metadata,
-        Column('uid', Integer, primary_key=True),
-        Column('mail', String, index=True, unique=True),
-        Column('password', String),
-        Column('level', Enum(UserLevel))
-    )
+    __tablename__ = 'user'
+
+    uid = Column('uid', Integer, primary_key=True)
+    mail = Column('mail', String, index=True, unique=True)
+    password = Column('password', String)
+    level = Column('level', Enum(UserLevel))
 
 
 @model_context
