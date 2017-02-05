@@ -3,6 +3,7 @@
 
 import config
 import view.user
+import view.problem
 import asyncio
 import tornado.web
 import tornado.platform.asyncio
@@ -23,6 +24,7 @@ def create_application(engine, redis_pool):
         (r'/user/login', view.user.LoginHandler, param),
         (r'/user/get', view.user.GetHandler, param),
         (r'/user/get/(\d+)', view.user.GetHandler, param),
+        (r'/problem/update', view.problem.UpdateHandler, param),
     ])
 
 

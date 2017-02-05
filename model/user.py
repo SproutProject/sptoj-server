@@ -1,10 +1,17 @@
 '''User model module'''
 
 
+import enum
 import bcrypt
 import secrets
-from sqlalchemy import Table, Column, Integer, String
+from sqlalchemy import Table, Column, Integer, String, Enum
 from . import BaseModel, model_context
+
+
+@enum.unique
+class UserLevel(enum.IntEnum):
+    user = 3
+    kernel = 0
 
 
 class UserModel(BaseModel):
@@ -13,12 +20,13 @@ class UserModel(BaseModel):
     table = Table('user', BaseModel.metadata,
         Column('uid', Integer, primary_key=True),
         Column('mail', String, index=True, unique=True),
-        Column('password', String)
+        Column('password', String),
+        Column('level', Enum(UserLevel))
     )
 
 
 @model_context
-async def create(mail, password, ctx):
+async def create(mail, password, level=UserLevel.user, ctx=None):
     '''Create a user.
     
     Args:
@@ -34,7 +42,7 @@ async def create(mail, password, ctx):
     hashpw = hashpw.decode('utf-8')
 
     try:
-        user = UserModel(mail=mail, password=hashpw)
+        user = UserModel(mail=mail, password=hashpw, level=level)
         await user.save(ctx.conn)
         return user
     except:

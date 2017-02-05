@@ -99,6 +99,9 @@ class TestGet(TestCase):
     async def test_get_self(self):
         '''Test get self information.'''
 
+        response = await tests.request('/user/get', {})
+        self.assertEqual(response, 'Error')
+
         response = await tests.request('/user/register', {
             'mail': 'foo@example.com',
             'password': '1234'

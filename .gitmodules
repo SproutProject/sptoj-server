@@ -1,0 +1,3 @@
+[submodule "tests/problem"]
+	path = tests/problem
+	url = https://github.com/SproutProject/sptoj-testproblem.git

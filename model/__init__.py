@@ -62,6 +62,7 @@ class ShadowResult(object):
     def __init__(self, results, typ):
 
         self.results = results
+        self.rowcount = self.results.rowcount
         self.typ = typ
 
     def __aiter__(self):
@@ -142,18 +143,15 @@ class BaseModel(object, metaclass=ShadowMeta):
         assert pval is not None
         self._fields[self._pkey.name] = pval
 
-    async def delete(self, conn):
-
-        pval = self._fields[self._pkey.name]
-        if pval is None:
-            raise AttributeError
-
-        await conn.execute(self.table.delete().where(self._pkey == pval))
-
     @classmethod
     def select(cls):
 
         return ShadowExpr(cls.table.select(), typ=cls)
+
+    @classmethod
+    def delete(cls):
+
+        return ShadowExpr(cls.table.delete())
 
     @classmethod
     def join(cls, other, *args, **kwargs):

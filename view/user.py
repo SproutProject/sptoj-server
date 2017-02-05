@@ -2,6 +2,7 @@
 
 
 import model.user
+from model.user import UserLevel
 from . import APIHandler, Attribute, Interface
 
 
@@ -66,6 +67,8 @@ class LoginHandler(APIHandler):
 class GetHandler(APIHandler):
     '''Get user information handler.'''
 
+    level = UserLevel.user
+
     async def process(self, uid=None, data=None):
         '''Process the request.
 
@@ -76,9 +79,6 @@ class GetHandler(APIHandler):
             UserInterface | 'Error'
 
         '''
-
-        if self.user is None:
-            return 'Error'
 
         if uid is not None and self.user.uid != int(uid):
             return 'Error'

@@ -44,6 +44,8 @@ class ResponseEncoder(json.JSONEncoder):
 class APIHandler(tornado.web.RequestHandler):
     '''API request handler.'''
 
+    level = None
+
     def initialize(self, engine, redis_pool):
         '''Initialize.
         
@@ -82,13 +84,19 @@ class APIHandler(tornado.web.RequestHandler):
                 else:
                     self.user = await model.user.acquire(token)
 
+                if self.level is not None:
+                    if self.user is None or self.user.level > self.level:
+                        self.finish(json.dumps('Error'))
+                        return
+
                 # Get the request data.
                 data = json.loads(self.request.body.decode('utf-8'))
                 # Call process method to handle the request.
                 response = await self.process(*args, data=data)
                 # Write the response.
-                self.set_header('content-type', 'application/json')
                 self.finish(json.dumps(response, cls=ResponseEncoder))
+
+        self.set_header('content-type', 'application/json')
 
         loop = asyncio.get_event_loop()
         await loop.create_task(async_lambda())

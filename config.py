@@ -27,3 +27,5 @@ DB_URL = 'postgresql://{}:{}@{}:{}/{}'.format(
 
 REDIS_URL = 'redis://@{}:{}/0'.format(
     environ.get('REDISHOST'), environ.get('REDISPORT'))
+
+PROBLEM_DIR = environ.get('PROBLEMDIR')
