@@ -15,6 +15,28 @@ from model.user import UserLevel
 from . import APIHandler, Attribute, Interface
 
 
+class ProblemInterface(Interface):
+    '''Problem view interface.'''
+
+    uid = Attribute()
+    revision = Attribute()
+    name = Attribute()
+    timelimit = Attribute()
+
+    def __init__(self, problem):
+        '''Initialize.
+
+        Args:
+            problem (ProblemModel): Problem model.
+
+        '''
+
+        self.uid = problem.uid
+        self.revision = problem.revision
+        self.name = problem.name
+        self.timelimit = problem.metadata['timelimit']
+
+
 class UpdateHandler(APIHandler):
     '''Update handler.'''
 
@@ -27,7 +49,7 @@ class UpdateHandler(APIHandler):
             data (object): {}
 
         Returns:
-            'Success' | 'Error'
+            'Success'
 
         '''
 
@@ -90,6 +112,7 @@ class UpdateHandler(APIHandler):
         
         '''
 
+        # Prevent from race condition.
         lockfd = os.open(os.path.join(git_dir, '.flock'),
             os.O_CREAT | os.O_CLOEXEC, 0o440)
         fcntl.flock(lockfd, fcntl.LOCK_EX)
@@ -116,3 +139,25 @@ class UpdateHandler(APIHandler):
         finally:
             fcntl.flock(lockfd, fcntl.LOCK_UN)
             os.close(lockfd)
+
+
+class ListHandler(APIHandler):
+    '''List handler.'''
+
+    level = UserLevel.kernel
+
+    async def process(self, data):
+        '''Process the request.
+
+        Args:
+            data (object): {}
+
+        Returns:
+            [ProblemInterface]
+
+        '''
+
+        problems = await model.problem.list()
+        problemifs = [ProblemInterface(problem) for problem in problems]
+
+        return problemifs

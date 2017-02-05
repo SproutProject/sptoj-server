@@ -9,7 +9,7 @@ from . import BaseModel, model_context
 class ProblemModel(BaseModel):
     '''Problem model.'''
     
-    table = Table('problem', BaseModel.metadata,
+    table = Table('problem', BaseModel._metadata,
         Column('uid', Integer, primary_key=True),
         Column('name', String, index=True),
         Column('revision', String),
@@ -79,6 +79,28 @@ async def remove(uid, ctx):
             .where(ProblemModel.uid == uid)
             .execute(ctx.conn)).rowcount == 1
     except:
-        raise
         return False
 
+
+@model_context
+async def list(start_uid=0, limit=None, ctx=None):
+    '''List the problems.
+
+    Args:
+        start_uid (int): Lower bound of the problem ID.
+        limit (int): The size limit.
+
+    Returns:
+        [PorblemModel]
+
+    '''
+    
+    query = ProblemModel.select().where(ProblemModel.uid >= start_uid)
+    if limit is not None:
+        query = query.limit(limit)
+
+    problems = []
+    async for problem in (await query.execute(ctx.conn)):
+        problems.append(problem)
+
+    return problems

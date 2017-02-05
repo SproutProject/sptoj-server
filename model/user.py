@@ -17,7 +17,7 @@ class UserLevel(enum.IntEnum):
 class UserModel(BaseModel):
     '''User model.'''
 
-    table = Table('user', BaseModel.metadata,
+    table = Table('user', BaseModel._metadata,
         Column('uid', Integer, primary_key=True),
         Column('mail', String, index=True, unique=True),
         Column('password', String),

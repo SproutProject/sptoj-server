@@ -90,7 +90,7 @@ class ShadowResult(object):
 
 class BaseModel(object, metaclass=ShadowMeta):
 
-    metadata = MetaData()
+    _metadata = MetaData()
 
     def __init__(self, _result_obj=None, **kwargs):
 
@@ -184,12 +184,12 @@ def model_context(func):
 def create_schemas(db_url):
 
     engine = sa.create_engine(db_url)
-    BaseModel.metadata.create_all(engine)
+    BaseModel._metadata.create_all(engine)
     engine.dispose()
 
 
 def drop_schemas(db_url):
 
     engine = sa.create_engine(db_url)
-    BaseModel.metadata.drop_all(engine)
+    BaseModel._metadata.drop_all(engine)
     engine.dispose()

@@ -15,7 +15,7 @@ class UserInterface(Interface):
         '''Initialize.
 
         Args:
-            user (schema.User): User object.
+            user (UserModel): User model.
 
         '''
 

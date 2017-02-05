@@ -34,3 +34,20 @@ class TestUpdate(TestCase):
 
         response = await tests.request('/problem/update', {})
         self.assertEqual(response, 'Success')
+
+    @tests.async_test
+    async def test_list(self):
+        '''Test list.'''
+
+        await model.user.create('admin', '1234',
+            level=model.user.UserLevel.kernel)
+        response = await tests.request('/user/login', {
+            'mail': 'admin',
+            'password': '1234'
+        })
+        self.assertEqual(response, 'Success')
+        response = await tests.request('/problem/update', {})
+        self.assertEqual(response, 'Success')
+
+        response = await tests.request('/problem/list', {})
+        self.assertGreater(len(response), 0)
