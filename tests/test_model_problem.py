@@ -41,12 +41,5 @@ class TestBasic(TestCase):
         self.assertTrue(await remove(1000))
         self.assertFalse(await remove(1000))
 
-
-class TestProSet(TestCase):
-    '''ProSet unittest.'''
-
-    @tests.async_test
-    async def test_create(self):
-        '''Test create.'''
-
-        await test()
+        problem = await get(1000)
+        self.assertIsNone(problem)

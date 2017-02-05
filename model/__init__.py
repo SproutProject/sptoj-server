@@ -11,17 +11,21 @@ from sqlalchemy import MetaData
 
 class Relation(object):
 
-    def __init__(self, target_cls, back_populates=None, rkey=None,
-        reverse=False):
+    def __init__(self, target_cls, back_populates=None, onupdate="CASCADE",
+        ondelete="CASCADE", rkey=None, reverse=False):
 
         self.target_cls = target_cls
         self.back_populates = back_populates
+        self.onupdate = onupdate
+        self.ondelete = ondelete
         self.rkey = rkey
         self.reverse = reverse
 
     def bind(self, source_cls):
         self.rkey = sa.Column('_rel_{}'.format(self.target_cls._table.name),
-            self.target_cls._pkey.type, sa.ForeignKey(self.target_cls._pkey),
+            self.target_cls._pkey.type,
+            sa.ForeignKey(self.target_cls._pkey, onupdate=self.onupdate,
+                ondelete=self.ondelete),
             index=True)
 
         if self.back_populates is not None:
@@ -105,6 +109,7 @@ class ShadowMeta(type):
 
 
 class ShadowExpr(object):
+
     def __init__(self, expr, typ=None):
 
         self.expr = expr
@@ -184,13 +189,9 @@ class BaseModel(object, metaclass=ShadowMeta):
         if _result_obj is not None:
             fields = dict((column.name, _result_obj[_prefix + column.name])
                 for column in self._columns.values())
-
             for key, relation in self._relations.items():
-                target_cls = relation.target_cls
-                if relation.reverse:
-                    fields[key] = (target_cls.select()
-                        .where(relation.rkey == fields[self._pfield]))
-                else:
+                if not relation.reverse:
+                    target_cls = relation.target_cls
                     fields[key] = target_cls(_result_obj,
                         '_ns_{}_'.format(target_cls._table.name))
         else:
@@ -209,9 +210,17 @@ class BaseModel(object, metaclass=ShadowMeta):
                 if not relation.reverse and key in kwargs:
                     fields[key] = kwargs[key]
 
+            pval = fields[self._pfield]
+            if pval is not None:
+                for key, relation in self._relations.items():
+                    if relation.reverse:
+                        fields[key] = (relation.target_cls.select()
+                            .where(relation.rkey == pval))
+
         object.__setattr__(self, '_fields', fields)
 
     def __getattr__(self, name):
+
         if name not in self._fields:
             raise AttributeError
 
@@ -232,6 +241,7 @@ class BaseModel(object, metaclass=ShadowMeta):
         self._fields[name] = value
 
     async def save(self, conn):
+
         table_fields = dict(self._fields)
         if table_fields[self._pkey.name] is None:
             del table_fields[self._pkey.name]
@@ -262,6 +272,12 @@ class BaseModel(object, metaclass=ShadowMeta):
         pval = await (await conn.execute(expr)).scalar()
         assert pval is not None
         self._fields[self._pkey.name] = pval
+
+        # Update reversed relation queries.
+        for key, relation in self._relations.items():
+            if relation.reverse:
+                self._fields[key] = (relation.target_cls.select()
+                    .where(relation.rkey == pval))
 
     @classmethod
     def select(cls):

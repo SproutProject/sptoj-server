@@ -3,7 +3,7 @@
 
 from sqlalchemy import Table, Column, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
-from . import BaseModel, Relation, model_context
+from . import BaseModel, model_context
 
 
 class ProblemModel(BaseModel):
@@ -15,26 +15,6 @@ class ProblemModel(BaseModel):
     name = Column('name', String, index=True)
     revision = Column('revision', String)
     metadata = Column('metadata', JSONB)
-
-
-class ProSetModel(BaseModel):
-    '''ProSet model.'''
-
-    __tablename__ = 'proset'
-
-    uid = Column('uid', Integer, primary_key=True)
-    name = Column('name', String, index=True)
-
-
-class ProItemModel(BaseModel):
-    '''ProItem model.'''
-
-    __tablename__ = 'proitem'
-
-    uid = Column('uid', Integer, primary_key=True)
-
-    parent = Relation(ProSetModel, back_populates='items')
-    problem = Relation(ProblemModel)
 
 
 @model_context
@@ -63,10 +43,10 @@ async def create(uid, revision, metadata, ctx):
 
 @model_context
 async def get(uid, ctx):
-    '''Get the problem from Problem ID.
+    '''Get the problem by problem ID.
 
     Args:
-        uid (int): Problem ID.
+        uid (int): problem ID.
 
     Returns:
         ProblemModel | None
@@ -84,10 +64,10 @@ async def get(uid, ctx):
 
 @model_context
 async def remove(uid, ctx):
-    '''Remove the problem from Problem ID.
+    '''Remove the problem by problem ID.
 
     Args:
-        uid (int): Problem ID.
+        uid (int): problem ID.
 
     Returns:
         True | False
@@ -111,7 +91,7 @@ async def list(start_uid=0, limit=None, ctx=None):
         limit (int): The size limit.
 
     Returns:
-        [PorblemModel]
+        [ProblemModel]
 
     '''
 
@@ -124,21 +104,3 @@ async def list(start_uid=0, limit=None, ctx=None):
         problems.append(problem)
 
     return problems
-
-
-@model_context
-async def test(ctx):
-    problem = await create(1000, 'deadbeef', { 'name': 'foo' })
-    proset = ProSetModel(name='square')
-    await proset.save(ctx.conn)
-    proitem = ProItemModel(parent=proset)
-    proitem.problem = problem
-    await proitem.save(ctx.conn)
-
-    results = await ProItemModel.select().where(ProItemModel.uid == proitem.uid).execute(ctx.conn)
-    proitem = await results.first()
-    print(proitem.uid, proitem.problem, proitem.parent)
-
-    results = await proitem.parent.items.execute(ctx.conn)
-    async for proitem in results:
-        print(proitem.uid)
