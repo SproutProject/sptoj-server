@@ -2,7 +2,7 @@
 
 
 import enum
-from sqlalchemy import Table, Column, Integer, String, Enum
+from sqlalchemy import Table, Column,Integer, String, Enum
 from sqlalchemy.dialects.postgresql import JSONB
 from model.user import UserModel
 from model.problem import ProblemModel

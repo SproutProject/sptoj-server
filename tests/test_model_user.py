@@ -6,7 +6,7 @@ from model.user import *
 from unittest import TestCase
 
 
-class TestCreate(TestCase):
+class TestBasic(TestCase):
     '''Create unittest.'''
 
     @tests.async_test
@@ -23,6 +23,24 @@ class TestCreate(TestCase):
 
         self.assertIsInstance(await create('foo', '1234'), UserModel)
         self.assertIsNone(await create('foo', '1234'))
+
+    @tests.async_test
+    async def test_update(self):
+        '''Test update user.'''
+
+        user = await create('foo', '1234')
+        self.assertIsInstance(user, UserModel)
+        self.assertEqual(user.level, UserLevel.user)
+        user.level = UserLevel.kernel
+        self.assertTrue(await user.update(password='5678'))
+
+        self.assertIsNone(await gen_token('foo', '1234'))
+        token = await gen_token('foo', '5678')
+        self.assertIsNotNone(token)
+
+        user = await acquire(token)
+        self.assertIsNotNone(user)
+        self.assertEqual(user.level, UserLevel.kernel)
 
 
 class TestToken(TestCase):

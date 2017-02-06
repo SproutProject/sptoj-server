@@ -20,9 +20,29 @@ class UserModel(BaseModel):
     __tablename__ = 'user'
 
     uid = Column('uid', Integer, primary_key=True)
-    mail = Column('mail', String, index=True, unique=True)
-    password = Column('password', String)
     level = Column('level', Enum(UserLevel))
+    _mail = Column('mail', String, index=True, unique=True)
+    _password = Column('password', String)
+
+    @model_context
+    async def update(self, password=None, ctx=None):
+        '''Save the changes.
+
+        Returns:
+            True | False
+
+        '''
+
+        if password is not None:
+            hashpw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(12))
+            hashpw = hashpw.decode('utf-8')
+            self._password = hashpw
+
+        try:
+            await self.save(ctx.conn)
+            return True
+        except:
+            return False
 
 
 @model_context
@@ -42,24 +62,11 @@ async def create(mail, password, level=UserLevel.user, ctx=None):
     hashpw = hashpw.decode('utf-8')
 
     try:
-        user = UserModel(mail=mail, password=hashpw, level=level)
+        user = UserModel(level=level, _mail=mail, _password=hashpw)
         await user.save(ctx.conn)
         return user
     except:
         return None
-
-
-@model_context
-async def modify(uid, password, ctx):
-
-    hashpw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(12))
-    hashpw = hashpw.decode('utf-8')
-
-    conn = ctx.conn
-    async with conn.begin() as trans:
-        pass
-        #print(sa.select([UserModel]).select_from(UserModel.join(UserModel)))
-        #print(sa.select([UserModel]).where(UserModel.uid == uid).as_scalar())
 
 
 @model_context
@@ -133,4 +140,3 @@ async def acquire(token, ctx):
     return await (await UserModel.select()
         .where(UserModel.uid == uid)
         .execute(ctx.conn)).first()
-

@@ -105,6 +105,10 @@ class ShadowMeta(type):
         if name in self._table.columns:
             return self._table.columns[name]
 
+        mutable_name = '_' + name
+        if not name.startswith('_') and mutable_name in self._table.columns:
+            return self._table.columns[mutable_name]
+
         raise AttributeError
 
 
@@ -218,7 +222,11 @@ class BaseModel(object, metaclass=ShadowMeta):
     def __getattr__(self, name):
 
         if name not in self._fields:
-            raise AttributeError
+            mutable_name = '_' + name
+            if not name.startswith('_') and mutable_name in self._fields:
+                name = mutable_name
+            else:
+                raise AttributeError
 
         return self._fields[name]
 
