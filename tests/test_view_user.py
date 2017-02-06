@@ -119,5 +119,5 @@ class TestGet(TestCase):
         response = await tests.request('/user/get', {})
         self.assertEqual(response, { 'uid': 1 })
 
-        response = await tests.request('/user/get/100', {})
+        response = await tests.request('/user/100/get', {})
         self.assertEqual(response, 'Error')

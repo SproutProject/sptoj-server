@@ -44,8 +44,32 @@ class ProSetModel(BaseModel):
         '''
 
         try:
-            proitem = ProItemModel(parent=self, problem=problem)
+            proitem = ProItemModel(_parent=self, problem=problem)
             await proitem.save(ctx.conn)
+            return proitem
+        except:
+            return None
+
+    @model_context
+    async def get(self, uid, ctx):
+        '''Get the item by the item ID.
+
+        Args:
+            uid (int): The item ID.
+
+        Returns:
+            ProItem | None
+
+        '''
+
+        try:
+            proitem = await (await ProItemModel.select()
+                .where(ProItemModel.uid == uid)
+                .execute(ctx.conn)).first()
+
+            if proitem.parent.uid != self.uid:
+                return None
+
             return proitem
         except:
             return None
@@ -71,7 +95,7 @@ class ProSetModel(BaseModel):
 
     @model_context
     async def list(self, start_uid=0, limit=None, ctx=None):
-        '''List the problems.
+        '''List the items.
 
         Args:
             start_uid (int): Lower bound of the item ID.
@@ -99,7 +123,7 @@ class ProItemModel(BaseModel):
     __tablename__ = 'proitem'
 
     uid = Column('uid', Integer, primary_key=True)
-    parent = Relation(ProSetModel, back_populates='items')
+    _parent = Relation(ProSetModel, back_populates='items')
     problem = Relation(ProblemModel)
 
     @model_context

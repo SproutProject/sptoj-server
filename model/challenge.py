@@ -24,7 +24,6 @@ class ChallengeModel(BaseModel):
     uid = Column('uid', Integer, primary_key=True)
     _revision = Column('revision', String)
     _state = Column('state', Enum(JudgeState))
-    metadata = Column('metadata', JSONB)
     _submitter = Relation(UserModel, back_populates="challenges")
     _problem = Relation(ProblemModel, back_populates="challenges")
 
@@ -35,9 +34,9 @@ class SubtaskModel(BaseModel):
     __tablename__ = 'subtask'
 
     uid = Column('uid', Integer, primary_key=True)
-    state = Column('state', Enum(JudgeState))
+    _state = Column('state', Enum(JudgeState))
     metadata = Column('metadata', JSONB)
-    challenge = Relation(ChallengeModel, back_populates="subtasks")
+    _challenge = Relation(ChallengeModel, back_populates="subtasks")
 
 
 @model_context
@@ -54,10 +53,19 @@ async def create(submitter, problem, ctx):
     '''
 
     try:
-        challenge = ChallengeModel(_revision=problem.revision,
-            _state=JudgeState.pending, metadata={}, _submitter=submitter,
-            _problem=problem)
-        await challenge.save(ctx.conn)
+        tests = problem.metadata['test']
+
+        async with ctx.conn.begin():
+            challenge = ChallengeModel(_revision=problem.revision,
+                _state=JudgeState.pending, _submitter=submitter,
+                _problem=problem)
+            await challenge.save(ctx.conn)
+
+            for test in tests:
+                subtask = SubtaskModel(_state=JudgeState.pending, metadata=test,
+                    _challenge=challenge)
+                await subtask.save(ctx.conn)
+
         return challenge
     except:
         raise
