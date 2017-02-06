@@ -22,11 +22,11 @@ class ChallengeModel(BaseModel):
     __tablename__ = 'challenge'
 
     uid = Column('uid', Integer, primary_key=True)
-    revision = Column('revision', String)
-    state = Column('state', Enum(JudgeState))
+    _revision = Column('revision', String)
+    _state = Column('state', Enum(JudgeState))
     metadata = Column('metadata', JSONB)
-    challenger = Relation(UserModel, back_populates="challenges")
-    problem = Relation(ProblemModel, back_populates="challenges")
+    _submitter = Relation(UserModel, back_populates="challenges")
+    _problem = Relation(ProblemModel, back_populates="challenges")
 
 
 class SubtaskModel(BaseModel):
@@ -38,3 +38,27 @@ class SubtaskModel(BaseModel):
     state = Column('state', Enum(JudgeState))
     metadata = Column('metadata', JSONB)
     challenge = Relation(ChallengeModel, back_populates="subtasks")
+
+
+@model_context
+async def create(submitter, problem, ctx):
+    '''Create a challenge.
+
+    Args:
+        submitter (UserModel): The submitter.
+        problem (ProblemModel): The problem.
+
+    Returns:
+        ChallengeModel | None
+
+    '''
+
+    try:
+        challenge = ChallengeModel(_revision=problem.revision,
+            _state=JudgeState.pending, metadata={}, _submitter=submitter,
+            _problem=problem)
+        await challenge.save(ctx.conn)
+        return challenge
+    except:
+        raise
+        return None

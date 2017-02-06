@@ -12,7 +12,7 @@ class ProblemModel(BaseModel):
     __tablename__ = 'problem'
 
     uid = Column('uid', Integer, primary_key=True)
-    name = Column('name', String, index=True)
+    _name = Column('name', String, index=True)
     revision = Column('revision', String)
     metadata = Column('metadata', JSONB)
 
@@ -34,7 +34,7 @@ async def create(uid, revision, metadata, ctx):
     try:
         name = metadata['name']
         problem = ProblemModel(
-            uid=uid, name=name, revision=revision, metadata=metadata)
+            uid=uid, _name=name, revision=revision, metadata=metadata)
         await problem.save(ctx.conn)
         return problem
     except:
@@ -54,10 +54,9 @@ async def get(uid, ctx):
     '''
 
     try:
-        problem = await (await ProblemModel.select()
+        return await (await ProblemModel.select()
             .where(ProblemModel.uid == uid)
             .execute(ctx.conn)).first()
-        return problem
     except:
         return None
 

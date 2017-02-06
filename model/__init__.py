@@ -21,8 +21,8 @@ class Relation(object):
         self.rkey = rkey
         self.reverse = reverse
 
-    def bind(self, source_cls):
-        self.rkey = sa.Column('_rel_{}'.format(self.target_cls._table.name),
+    def bind(self, key, source_cls):
+        self.rkey = sa.Column('_rel_{}'.format(key),
             self.target_cls._pkey.type,
             sa.ForeignKey(self.target_cls._pkey, onupdate=self.onupdate,
                 ondelete=self.ondelete),
@@ -38,23 +38,32 @@ class Relation(object):
 
 class ShadowMeta(type):
 
-    def find_related_tables(relations):
+    def build_relation_query(table, relations):
 
-        workqueue = collections.deque([relations])
-        # There is no reference to itself
-        visited = set()
+        query = table
+        label_map = {}
+        for key, relation in relations.items():
+            prefix = '__' + key
+            target_cls = relation.target_cls
+            target_query = target_cls._relquery.alias(prefix)
 
-        while len(workqueue) > 0:
-            for relation in workqueue.popleft().values():
-                if relation.reverse:
-                    continue
+            for column in target_query.columns:
+                label_map[column] = '{}_{}'.format(prefix, column.name)
 
-                target_cls = relation.target_cls
-                if target_cls not in visited:
-                    visited.add(target_cls)
-                    workqueue.append(relation.target_cls._relations)
+            query = query.join(target_query,
+                relation.rkey == target_query.columns[target_cls._pfield])
 
-        return set(cls._table for cls in visited)
+        select_columns = []
+        for column in query.columns:
+            if column.name.startswith('_rel_'):
+                continue
+
+            if column in label_map:
+                column = column.label(label_map[column])
+
+            select_columns.append(column)
+
+        return sa.select(select_columns, from_obj=query)
 
     def __new__(cls, name, bases, namespace):
 
@@ -82,8 +91,8 @@ class ShadowMeta(type):
         model_cls._pfield = pfield
 
         table_columns = list(columns.values())
-        for relation in relations.values():
-            table_columns.append(relation.bind(model_cls))
+        for key, relation in relations.items():
+            table_columns.append(relation.bind(key, model_cls))
 
         for key in columns:
             delattr(model_cls, key)
@@ -93,10 +102,12 @@ class ShadowMeta(type):
 
         model_cls._columns = columns
         model_cls._relations = relations
-        model_cls._reltables = cls.find_related_tables(relations)
 
         model_cls._table = sa.Table(namespace['__tablename__'],
             model_cls._metadata, *table_columns)
+
+        model_cls._relquery = cls.build_relation_query(model_cls._table,
+            relations)
 
         return model_cls
 
@@ -188,17 +199,17 @@ class BaseModel(object, metaclass=ShadowMeta):
 
     _metadata = MetaData()
 
-    def __init__(self, _result_obj=None, **kwargs):
+    def __init__(self, _result_obj=None, _prefix='', **kwargs):
 
         if _result_obj is not None:
-            prefix = '{}_'.format(self._table.name)
-            fields = dict((key, _result_obj[prefix + column.name])
+            fields = dict((key, _result_obj[_prefix + column.name])
                 for key, column in self._columns.items())
 
             for key, relation in self._relations.items():
                 if not relation.reverse:
                     target_cls = relation.target_cls
-                    fields[key] = target_cls(_result_obj)
+                    next_prefix = '{}__{}_'.format(_prefix, key)
+                    fields[key] = target_cls(_result_obj, next_prefix)
         else:
             fields = {}
             for key, column in self._columns.items():
@@ -303,13 +314,7 @@ class BaseModel(object, metaclass=ShadowMeta):
     @classmethod
     def select(cls):
 
-        expr = cls._table
-        table_columns = list(cls._table.columns)
-        for table in cls._reltables:
-            expr = expr.join(table)
-
-        expr = expr.select().apply_labels()
-        return ShadowExpr(expr, typ=cls)
+        return ShadowExpr(cls._relquery, typ=cls)
 
     @classmethod
     def delete(cls):

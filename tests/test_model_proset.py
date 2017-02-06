@@ -37,12 +37,13 @@ class TestBasic(TestCase):
         proset = await create('circle', True)
         self.assertIsInstance(proset, ProSetModel)
 
+        proset.name = 'square'
         proset.hidden = False
         self.assertTrue(await proset.update())
 
         proset = await get(proset.uid)
         self.assertIsInstance(proset, ProSetModel)
-        self.assertEqual(proset.name, 'circle')
+        self.assertEqual(proset.name, 'square')
         self.assertEqual(proset.hidden, False)
 
     @tests.async_test
