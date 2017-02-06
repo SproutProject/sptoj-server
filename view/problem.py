@@ -93,7 +93,7 @@ class UpdateHandler(APIHandler):
         try:
             problem_path = os.path.join(config.PROBLEM_DIR, str(uid))
             assert stat.S_ISDIR(os.lstat(problem_path).st_mode)
-            config_path = os.path.join(problem_path, 'config.json')
+            config_path = os.path.join(problem_path, 'conf.json')
             assert stat.S_ISREG(os.lstat(config_path).st_mode)
 
             with open(config_path, 'r') as config_file:

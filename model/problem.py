@@ -54,9 +54,9 @@ async def get(uid, ctx):
     '''
 
     try:
-        problem = await (await ProblemModel.select()
+        problem = await (ProblemModel.select()
             .where(ProblemModel.uid == uid)
-            .execute(ctx.conn)).first()
+            .first())
         return problem
     except:
         return None
@@ -75,9 +75,9 @@ async def remove(uid, ctx):
     '''
 
     try:
-        return (await ProblemModel.delete()
+        return await (ProblemModel.delete()
             .where(ProblemModel.uid == uid)
-            .execute(ctx.conn)).rowcount == 1
+            .rowcount()) == 1
     except:
         return False
 
@@ -100,7 +100,7 @@ async def list(start_uid=0, limit=None, ctx=None):
         query = query.limit(limit)
 
     problems = []
-    async for problem in (await query.execute(ctx.conn)):
+    async for problem in query:
         problems.append(problem)
 
     return problems

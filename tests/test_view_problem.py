@@ -3,7 +3,6 @@
 
 import tests
 import model.user
-from view.problem import *
 from unittest import TestCase
 
 

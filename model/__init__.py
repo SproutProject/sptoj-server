@@ -9,6 +9,31 @@ import sqlalchemy as sa
 from sqlalchemy import MetaData
 
 
+def model_context(func):
+
+    class Context:
+
+        def __init__(self, conn=None, redis=None):
+
+            task = asyncio.Task.current_task()
+
+            if conn is None:
+                conn = task._conn
+
+            if redis is None:
+                redis = task._redis
+
+            self.conn = conn
+            self.redis = redis
+
+    async def wrapper(*args, **kwargs):
+        '''Wrapper.'''
+
+        return await func(*args, **kwargs, ctx=Context())
+
+    return wrapper
+
+
 class Relation(object):
 
     def __init__(self, target_cls, back_populates=None, onupdate="CASCADE",
@@ -85,10 +110,10 @@ class ShadowMeta(type):
         for relation in relations.values():
             table_columns.append(relation.bind(model_cls))
 
-        for key in columns.keys():
+        for key in columns:
             delattr(model_cls, key)
 
-        for key in relations.keys():
+        for key in relations:
             delattr(model_cls, key)
 
         model_cls._columns = columns
@@ -114,6 +139,7 @@ class ShadowExpr(object):
 
         self.expr = expr
         self.typ = typ
+        self.results = None
 
     def __getattr__(self, name):
 
@@ -143,25 +169,19 @@ class ShadowExpr(object):
 
         return value
 
-    async def execute(self, conn):
+    @model_context
+    async def execute(self, ctx):
 
-        results = await conn.execute(self.expr)
-        return ShadowResult(results, self.typ)
-
-
-class ShadowResult(object):
-
-    def __init__(self, results, typ):
-
-        self.results = results
-        self.rowcount = self.results.rowcount
-        self.typ = typ
+        self.results = await ctx.conn.execute(self.expr)
 
     def __aiter__(self):
 
         return self
 
     async def __anext__(self):
+
+        if self.results is None:
+            await self.execute()
 
         result = await self.results.fetchone()
         if result is None:
@@ -171,6 +191,9 @@ class ShadowResult(object):
 
     async def first(self):
 
+        if self.results is None:
+            await self.execute()
+
         result = await self.results.fetchone()
         self.results.close()
 
@@ -179,45 +202,48 @@ class ShadowResult(object):
         else:
             return self.typ(result)
 
+    async def rowcount(self):
+
+        if self.results is None:
+            await self.execute()
+
+        return self.results.rowcount
+
 
 class BaseModel(object, metaclass=ShadowMeta):
 
     _metadata = MetaData()
 
-    def __init__(self, _result_obj=None, _prefix='', **kwargs):
+    def __init__(self, _result_obj=None, **kwargs):
 
         if _result_obj is not None:
-            fields = dict((column.name, _result_obj[_prefix + column.name])
-                for column in self._columns.values())
+            prefix = '{}_'.format(self._table.name)
+            fields = dict((key, _result_obj[prefix + column.name])
+                for key, column in self._columns.items())
+
             for key, relation in self._relations.items():
                 if not relation.reverse:
                     target_cls = relation.target_cls
-                    fields[key] = target_cls(_result_obj,
-                        '_ns_{}_'.format(target_cls._table.name))
+                    fields[key] = target_cls(_result_obj)
         else:
             fields = {}
-            for column in self._columns.values():
+            for key, column in self._columns.items():
                 value = None
                 try:
-                    value = kwargs[column.name]
+                    value = kwargs[key]
                 except KeyError:
                     if not column.primary_key:
                         raise AttributeError
                 
-                fields[column.name] = value
+                fields[key] = value
 
             for key, relation in self._relations.items():
                 if not relation.reverse and key in kwargs:
                     fields[key] = kwargs[key]
 
-            pval = fields[self._pfield]
-            if pval is not None:
-                for key, relation in self._relations.items():
-                    if relation.reverse:
-                        fields[key] = (relation.target_cls.select()
-                            .where(relation.rkey == pval))
-
         object.__setattr__(self, '_fields', fields)
+
+        self.update_reverse_relations()
 
     def __getattr__(self, name):
 
@@ -228,7 +254,7 @@ class BaseModel(object, metaclass=ShadowMeta):
 
     def __setattr__(self, name, value):
 
-        if name == self._pkey.name:
+        if name == self._pfield:
             raise AttributeError
 
         if name not in self._fields and name not in self._relations:
@@ -240,27 +266,46 @@ class BaseModel(object, metaclass=ShadowMeta):
 
         self._fields[name] = value
 
+    def update_reverse_relations(self):
+
+        pval = self._fields[self._pfield]
+        reverse_relations = [(key, relation) for key, relation
+            in self._relations.items() if relation.reverse]
+
+        if pval is None:
+            for key, relation in reverse_relations:
+                if key in self._fields:
+                    del self._fields[key]
+        else:
+            for key, relation in reverse_relations:
+                self._fields[key] = (relation.target_cls.select()
+                    .where(relation.rkey == pval))
+
     async def save(self, conn):
 
-        table_fields = dict(self._fields)
-        if table_fields[self._pkey.name] is None:
-            del table_fields[self._pkey.name]
+        table_fields = {}
+
+        for key, column in self._columns.items():
+            if key not in self._fields:
+                raise AttributeError
+
+            if key == self._pfield and self._fields[key] is None:
+                continue
+
+            table_fields[column.name] = self._fields[key]
 
         for key, relation in self._relations.items():
             if relation.reverse:
-                if key in self._fields:
-                    del table_fields[key]
-            else:
-                if key not in self._fields:
-                    raise AttributeError
+                continue
 
-                del table_fields[key]
+            if key not in self._fields:
+                raise AttributeError
 
-                target = self._fields[key]
-                target_pval = getattr(target, target._pfield)
-                assert target_pval is not None
+            target = self._fields[key]
+            target_pval = getattr(target, target._pfield)
+            assert target_pval is not None
 
-                table_fields[relation.rkey.name] = target_pval
+            table_fields[relation.rkey.name] = target_pval
 
         expr = (sa.dialects.postgresql.insert(self._table)
             .values(**table_fields)
@@ -273,11 +318,9 @@ class BaseModel(object, metaclass=ShadowMeta):
         assert pval is not None
         self._fields[self._pkey.name] = pval
 
-        # Update reversed relation queries.
-        for key, relation in self._relations.items():
-            if relation.reverse:
-                self._fields[key] = (relation.target_cls.select()
-                    .where(relation.rkey == pval))
+        # Since we may change the primary value, update reversed relation
+        # queries.
+        self.update_reverse_relations()
 
     @classmethod
     def select(cls):
@@ -286,10 +329,8 @@ class BaseModel(object, metaclass=ShadowMeta):
         table_columns = list(cls._table.columns)
         for table in cls._reltables:
             expr = expr.join(table)
-            table_columns.extend(column.label('_ns_{}_{}'.format(
-                table.name, column.name)) for column in table.columns)
 
-        expr = sa.select(table_columns, from_obj=expr)
+        expr = expr.select().apply_labels()
         return ShadowExpr(expr, typ=cls)
 
     @classmethod
@@ -303,24 +344,13 @@ class BaseModel(object, metaclass=ShadowMeta):
         return ShadowExpr(cls._table.join(other._table, *args, **kwargs))
 
 
-def model_context(func):
-
-    class Context:
-        def __init__(self, conn, redis):
-            self.conn = conn
-            self.redis = redis
-
-    async def wrapper(*args, **kwargs):
-        '''Wrapper.'''
-
-        task = asyncio.Task.current_task()
-        ctx = Context(task._conn, task._redis)
-        return await func(*args, **kwargs, ctx=ctx)
-
-    return wrapper
-
-
 def create_schemas(db_url):
+
+    # Make sure to load all schemas.
+    import model.user
+    import model.problem
+    import model.proset
+    import model.challenge
 
     engine = sa.create_engine(db_url)
     BaseModel._metadata.create_all(engine)
@@ -328,6 +358,12 @@ def create_schemas(db_url):
 
 
 def drop_schemas(db_url):
+
+    # Make sure to load all schemas.
+    import model.user
+    import model.problem
+    import model.proset
+    import model.challenge
 
     engine = sa.create_engine(db_url)
     BaseModel._metadata.drop_all(engine)

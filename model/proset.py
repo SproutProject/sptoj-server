@@ -1,7 +1,7 @@
 '''ProSet model module'''
 
 
-from sqlalchemy import Table, Column, Integer, String
+from sqlalchemy import Table, Column, Integer, String, Boolean
 from sqlalchemy.dialects.postgresql import JSONB
 from model.problem import ProblemModel
 from . import BaseModel, Relation, model_context
@@ -14,6 +14,22 @@ class ProSetModel(BaseModel):
 
     uid = Column('uid', Integer, primary_key=True)
     name = Column('name', String, index=True)
+    hidden = Column('hidden', Boolean, index=True)
+
+    @model_context
+    async def update(self, ctx):
+        '''Save the changes.
+
+        Returns:
+            True | False
+
+        '''
+
+        try:
+            await self.save(ctx.conn)
+            return True
+        except:
+            return False
 
     @model_context
     async def add(self, problem, ctx):
@@ -47,9 +63,9 @@ class ProSetModel(BaseModel):
         '''
 
         try:
-            return (await ProItemModel.delete()
+            return await (ProItemModel.delete()
                 .where(ProItemModel.uid == proitem.uid)
-                .execute(ctx.conn)).rowcount == 1
+                .rowcount()) == 1
         except:
             return None
 
@@ -71,7 +87,7 @@ class ProSetModel(BaseModel):
             query = query.limit(limit)
 
         proitems = []
-        async for proitem in (await query.execute(ctx.conn)):
+        async for proitem in query:
             proitems.append(proitem)
 
         return proitems
@@ -86,13 +102,29 @@ class ProItemModel(BaseModel):
     parent = Relation(ProSetModel, back_populates='items')
     problem = Relation(ProblemModel)
 
+    @model_context
+    async def update(self, ctx):
+        '''Save the changes.
+
+        Returns:
+            True | False
+
+        '''
+
+        try:
+            await self.save(ctx.conn)
+            return True
+        except:
+            return False
+
 
 @model_context
-async def create(name, ctx):
+async def create(name, hidden, ctx):
     '''Create a problem set.
 
     Args:
         name (string): Problem set name.
+        hidden (bool): Is hidden or not.
 
     Returns:
         ProSetModel | None
@@ -100,7 +132,7 @@ async def create(name, ctx):
     '''
 
     try:
-        proset = ProSetModel(name='square')
+        proset = ProSetModel(name=name, hidden=hidden)
         await proset.save(ctx.conn)
         return proset
     except:
@@ -120,9 +152,9 @@ async def get(uid, ctx):
     '''
 
     try:
-        proset = await (await ProSetModel.select()
+        proset = await (ProSetModel.select()
             .where(ProSetModel.uid == uid)
-            .execute(ctx.conn)).first()
+            .first())
         return proset
     except:
         return None
@@ -141,8 +173,8 @@ async def remove(proset, ctx):
     '''
 
     try:
-        return (await ProSetModel.delete()
+        return await (ProSetModel.delete()
             .where(ProSetModel.uid == proset.uid)
-            .execute(ctx.conn)).rowcount == 1
+            .rowcount()) == 1
     except:
         return False

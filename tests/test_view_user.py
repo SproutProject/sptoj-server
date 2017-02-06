@@ -2,7 +2,6 @@
 
 
 import tests
-import view.user
 from unittest import TestCase
 
 
