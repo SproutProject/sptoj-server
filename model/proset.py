@@ -63,9 +63,9 @@ class ProSetModel(BaseModel):
         '''
 
         try:
-            return await (ProItemModel.delete()
+            return (await ProItemModel.delete()
                 .where(ProItemModel.uid == proitem.uid)
-                .rowcount()) == 1
+                .execute(ctx.conn)).rowcount == 1
         except:
             return None
 
@@ -87,7 +87,7 @@ class ProSetModel(BaseModel):
             query = query.limit(limit)
 
         proitems = []
-        async for proitem in query:
+        async for proitem in (await query.execute(ctx.conn)):
             proitems.append(proitem)
 
         return proitems
@@ -152,9 +152,9 @@ async def get(uid, ctx):
     '''
 
     try:
-        proset = await (ProSetModel.select()
+        proset = await (await ProSetModel.select()
             .where(ProSetModel.uid == uid)
-            .first())
+            .execute(ctx.conn)).first()
         return proset
     except:
         return None
@@ -173,8 +173,8 @@ async def remove(proset, ctx):
     '''
 
     try:
-        return await (ProSetModel.delete()
+        return (await ProSetModel.delete()
             .where(ProSetModel.uid == proset.uid)
-            .rowcount()) == 1
+            .execute(ctx.conn)).rowcount == 1
     except:
         return False

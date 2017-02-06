@@ -9,31 +9,6 @@ import sqlalchemy as sa
 from sqlalchemy import MetaData
 
 
-def model_context(func):
-
-    class Context:
-
-        def __init__(self, conn=None, redis=None):
-
-            task = asyncio.Task.current_task()
-
-            if conn is None:
-                conn = task._conn
-
-            if redis is None:
-                redis = task._redis
-
-            self.conn = conn
-            self.redis = redis
-
-    async def wrapper(*args, **kwargs):
-        '''Wrapper.'''
-
-        return await func(*args, **kwargs, ctx=Context())
-
-    return wrapper
-
-
 class Relation(object):
 
     def __init__(self, target_cls, back_populates=None, onupdate="CASCADE",
@@ -139,7 +114,6 @@ class ShadowExpr(object):
 
         self.expr = expr
         self.typ = typ
-        self.results = None
 
     def __getattr__(self, name):
 
@@ -169,19 +143,25 @@ class ShadowExpr(object):
 
         return value
 
-    @model_context
-    async def execute(self, ctx):
+    async def execute(self, conn):
 
-        self.results = await ctx.conn.execute(self.expr)
+        results = await conn.execute(self.expr)
+        return ShadowResult(results, self.typ)
+
+
+class ShadowResult(object):
+
+    def __init__(self, results, typ):
+
+        self.results = results
+        self.rowcount = self.results.rowcount
+        self.typ = typ
 
     def __aiter__(self):
 
         return self
 
     async def __anext__(self):
-
-        if self.results is None:
-            await self.execute()
 
         result = await self.results.fetchone()
         if result is None:
@@ -191,9 +171,6 @@ class ShadowExpr(object):
 
     async def first(self):
 
-        if self.results is None:
-            await self.execute()
-
         result = await self.results.fetchone()
         self.results.close()
 
@@ -201,13 +178,6 @@ class ShadowExpr(object):
             return None
         else:
             return self.typ(result)
-
-    async def rowcount(self):
-
-        if self.results is None:
-            await self.execute()
-
-        return self.results.rowcount
 
 
 class BaseModel(object, metaclass=ShadowMeta):
@@ -342,6 +312,23 @@ class BaseModel(object, metaclass=ShadowMeta):
     def join(cls, other, *args, **kwargs):
 
         return ShadowExpr(cls._table.join(other._table, *args, **kwargs))
+
+
+def model_context(func):
+
+    class Context:
+        def __init__(self, conn, redis):
+            self.conn = conn
+            self.redis = redis
+
+    async def wrapper(*args, **kwargs):
+        '''Wrapper.'''
+
+        task = asyncio.Task.current_task()
+        ctx = Context(task._conn, task._redis)
+        return await func(*args, **kwargs, ctx=ctx)
+
+    return wrapper
 
 
 def create_schemas(db_url):

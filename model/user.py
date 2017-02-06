@@ -75,7 +75,9 @@ async def gen_token(mail, password, ctx):
 
     '''
 
-    user = await UserModel.select().where(UserModel.mail == mail).first()
+    user = await (await UserModel.select()
+        .where(UserModel.mail == mail)
+        .execute(ctx.conn)).first()
     if user is None:
         return None
 
@@ -105,7 +107,9 @@ async def get(uid, ctx):
 
     '''
 
-    return await UserModel.select().where(UserModel.uid == uid).first()
+    return await (await UserModel.select()
+        .where(UserModel.uid == uid)
+        .execute(ctx.conn)).first()
 
 
 @model_context
@@ -126,4 +130,7 @@ async def acquire(token, ctx):
 
     uid = int(uid)
 
-    return await UserModel.select().where(UserModel.uid == uid).first()
+    return await (await UserModel.select()
+        .where(UserModel.uid == uid)
+        .execute(ctx.conn)).first()
+
