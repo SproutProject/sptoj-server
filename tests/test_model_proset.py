@@ -53,8 +53,7 @@ class TestBasic(TestCase):
         proset = await create('square', False)
         self.assertIsInstance(proset, ProSetModel)
 
-        self.assertTrue(await remove(proset))
-        self.assertFalse(await remove(proset))
+        self.assertTrue(await proset.remove())
         proset = await get(proset.uid)
         self.assertIsNone(proset)
 
@@ -78,8 +77,7 @@ class TestBasic(TestCase):
         proitems = await proset.list()
         self.assertEqual(len(proitems), 2)
 
-        self.assertTrue(await proset.remove(proitem))
-        self.assertFalse(await proset.remove(proitem))
+        self.assertTrue(await proitems[0].remove())
 
         proitems = await proset.list()
         self.assertEqual(len(proitems), 1)

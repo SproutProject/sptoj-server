@@ -27,6 +27,25 @@ class ChallengeModel(BaseModel):
     _submitter = Relation(UserModel, back_populates="challenges")
     _problem = Relation(ProblemModel, back_populates="challenges")
 
+    @model_context
+    async def remove(self, ctx):
+        '''Remove a challenge.
+
+        Args:
+            challenge (ChallengeModel): Challenge.
+
+        Returns:
+            True | False
+
+        '''
+
+        try:
+            return (await ChallengeModel.delete()
+                .where(ChallengeModel.uid == self.uid)
+                .execute(ctx.conn)).rowcount == 1
+        except:
+            return False
+
 
 class SubtaskModel(BaseModel):
     '''Subtask model.'''
@@ -44,8 +63,8 @@ async def create(submitter, problem, ctx):
     '''Create a challenge.
 
     Args:
-        submitter (UserModel): The submitter.
-        problem (ProblemModel): The problem.
+        submitter (UserModel): Submitter.
+        problem (ProblemModel): Problem.
 
     Returns:
         ChallengeModel | None
@@ -67,5 +86,24 @@ async def create(submitter, problem, ctx):
 
         return challenge
     except:
-        raise
+        return None
+
+
+@model_context
+async def get(uid, ctx):
+    '''Get the challenge by challenge ID.
+
+    Args:
+        uid (int): challenge ID.
+
+    Returns:
+        ChallengeModel | None
+
+    '''
+
+    try:
+        return await (await ChallengeModel.select()
+            .where(ChallengeModel.uid == uid)
+            .execute(ctx.conn)).first()
+    except:
         return None

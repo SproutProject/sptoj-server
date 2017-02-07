@@ -9,11 +9,11 @@ from unittest import TestCase
 
 
 class TestBasic(TestCase):
-    '''Create unittest.'''
+    '''Basic unittest.'''
 
     @tests.async_test
-    async def test_create(self):
-        '''Test create.'''
+    async def test_operation(self):
+        '''Test basic operations.'''
 
         user = await model.user.create('foo', '1234')
         problem = await model.problem.create(1000, 'deadbeef', {
@@ -26,3 +26,10 @@ class TestBasic(TestCase):
         challenge = await create(user, problem)
         self.assertIsInstance(challenge, ChallengeModel)
         self.assertEqual(challenge.revision, problem.revision)
+
+        challenge = await get(challenge.uid)
+        self.assertIsInstance(challenge, ChallengeModel)
+
+        self.assertTrue(await challenge.remove())
+        challenge = await get(challenge.uid)
+        self.assertIsNone(challenge)

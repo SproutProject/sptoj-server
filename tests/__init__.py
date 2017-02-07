@@ -11,6 +11,8 @@ import aiopg.sa
 import redis
 import aiohttp
 import git
+import shutil
+import os
 
 
 # Install AsyncIO to tornado's IOLoop.
@@ -28,6 +30,10 @@ def async_test(func):
 
     def wrapper(*args, **kwargs):
         '''Wrapper.'''
+
+        shutil.rmtree('./tests/tmp')
+        os.mkdir('./tests/tmp', mode=0o755)
+        os.mkdir('./tests/tmp/code', mode=0o755)
 
         model.drop_schemas(config.DB_URL)
         model.create_schemas(config.DB_URL)

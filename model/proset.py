@@ -32,6 +32,25 @@ class ProSetModel(BaseModel):
             return False
 
     @model_context
+    async def remove(self, ctx):
+        '''Remove the problem set.
+
+        Args:
+            proset (ProSetModel): Problem set.
+
+        Returns:
+            True | False
+
+        '''
+
+        try:
+            return (await ProSetModel.delete()
+                .where(ProSetModel.uid == self.uid)
+                .execute(ctx.conn)).rowcount == 1
+        except:
+            return False
+
+    @model_context
     async def add(self, problem, ctx):
         '''Add a item to the problem set.
 
@@ -68,25 +87,6 @@ class ProSetModel(BaseModel):
                     (ProItemModel.parent.uid == self.uid))
                 .execute(ctx.conn)).first()
             return proitem
-        except:
-            return None
-
-    @model_context
-    async def remove(self, proitem, ctx):
-        '''Remove the item from the problem set.
-
-        Args:
-            proitem (ProItem): The item.
-
-        Returns:
-            True | False
-
-        '''
-
-        try:
-            return (await ProItemModel.delete()
-                .where(ProItemModel.uid == proitem.uid)
-                .execute(ctx.conn)).rowcount == 1
         except:
             return None
 
@@ -138,13 +138,32 @@ class ProItemModel(BaseModel):
         except:
             return False
 
+    @model_context
+    async def remove(self, ctx):
+        '''Remove the item from the problem set.
+
+        Args:
+            proitem (ProItem): Problem item.
+
+        Returns:
+            True | False
+
+        '''
+
+        try:
+            return (await ProItemModel.delete()
+                .where(ProItemModel.uid == self.uid)
+                .execute(ctx.conn)).rowcount == 1
+        except:
+            return None
+
 
 @model_context
 async def create(name, hidden, ctx):
     '''Create a problem set.
 
     Args:
-        name (string): Problem set name.
+        name (string): Name.
         hidden (bool): Is hidden or not.
 
     Returns:
@@ -165,7 +184,7 @@ async def get(uid, ctx):
     '''Get the problem set by problem set ID.
 
     Args:
-        uid (int): problem set ID.
+        uid (int): Problem set ID.
 
     Returns:
         ProblemModel | None
@@ -179,23 +198,3 @@ async def get(uid, ctx):
         return proset
     except:
         return None
-
-
-@model_context
-async def remove(proset, ctx):
-    '''Remove the problem set.
-
-    Args:
-        proset (ProSetModel): The problem set.
-
-    Returns:
-        True | False
-
-    '''
-
-    try:
-        return (await ProSetModel.delete()
-            .where(ProSetModel.uid == proset.uid)
-            .execute(ctx.conn)).rowcount == 1
-    except:
-        return False

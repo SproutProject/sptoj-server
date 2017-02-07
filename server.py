@@ -5,7 +5,6 @@ import config
 import view.user
 import view.problem
 import view.proset
-import view.challenge
 import asyncio
 import tornado.web
 import tornado.platform.asyncio
@@ -31,6 +30,7 @@ def create_application(engine, redis_pool):
         (r'/proset/create', view.proset.CreateHandler, param),
         (r'/proset/(\d+)/add', view.proset.AddItemHandler, param),
         (r'/proset/(\d+)/(\d+)/get', view.proset.GetItemHandler, param),
+        (r'/proset/(\d+)/(\d+)/submit', view.proset.SubmitHandler, param),
     ])
 
 

@@ -10,8 +10,8 @@ class TestBasic(TestCase):
     '''Basic unittest.'''
 
     @tests.async_test
-    async def test_create(self):
-        '''Test create.'''
+    async def test_operation(self):
+        '''Test basic operations.'''
 
         await model.user.create('admin', '1234',
             level=model.user.UserLevel.kernel)
@@ -39,6 +39,15 @@ class TestBasic(TestCase):
             '/proset/{}/{}/get'.format(proset_uid, proitem_uid), {})
         self.assertNotEqual(response, 'Error')
 
+        with open('./tests/code/2.cpp', 'r') as test_code:
+            response = await tests.request(
+                '/proset/{}/{}/submit'.format(proset_uid, proitem_uid), {
+                    'code': test_code.read(),
+                    'lang': 'c++',
+                })
+            self.assertNotEqual(response, 'Error')
+
+        # Test permission.
         response = await tests.request('/user/login', {
             'mail': 'foo',
             'password': '1234'
