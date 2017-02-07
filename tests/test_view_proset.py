@@ -39,8 +39,6 @@ class TestBasic(TestCase):
             '/proset/{}/{}/get'.format(proset_uid, proitem_uid), {})
         self.assertNotEqual(response, 'Error')
 
-        print(response)
-
         response = await tests.request('/user/login', {
             'mail': 'foo',
             'password': '1234'

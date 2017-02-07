@@ -5,6 +5,7 @@ import config
 import view.user
 import view.problem
 import view.proset
+import view.challenge
 import asyncio
 import tornado.web
 import tornado.platform.asyncio

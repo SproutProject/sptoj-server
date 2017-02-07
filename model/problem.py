@@ -34,7 +34,7 @@ async def create(uid, revision, metadata, ctx):
     try:
         name = metadata['name']
         problem = ProblemModel(
-            uid=uid, _name=name, revision=revision, metadata=metadata)
+            uid=uid, name=name, revision=revision, metadata=metadata)
         await problem.save(ctx.conn)
         return problem
     except:

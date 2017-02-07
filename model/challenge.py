@@ -56,14 +56,13 @@ async def create(submitter, problem, ctx):
         tests = problem.metadata['test']
 
         async with ctx.conn.begin():
-            challenge = ChallengeModel(_revision=problem.revision,
-                _state=JudgeState.pending, _submitter=submitter,
-                _problem=problem)
+            challenge = ChallengeModel(revision=problem.revision,
+                state=JudgeState.pending, submitter=submitter, problem=problem)
             await challenge.save(ctx.conn)
 
             for test in tests:
-                subtask = SubtaskModel(_state=JudgeState.pending, metadata=test,
-                    _challenge=challenge)
+                subtask = SubtaskModel(state=JudgeState.pending, metadata=test,
+                    challenge=challenge)
                 await subtask.save(ctx.conn)
 
         return challenge

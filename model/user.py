@@ -62,7 +62,7 @@ async def create(mail, password, level=UserLevel.user, ctx=None):
     hashpw = hashpw.decode('utf-8')
 
     try:
-        user = UserModel(level=level, _mail=mail, _password=hashpw)
+        user = UserModel(level=level, mail=mail, password=hashpw)
         await user.save(ctx.conn)
         return user
     except:

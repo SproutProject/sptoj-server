@@ -44,7 +44,7 @@ class ProSetModel(BaseModel):
         '''
 
         try:
-            proitem = ProItemModel(_parent=self, problem=problem)
+            proitem = ProItemModel(parent=self, problem=problem)
             await proitem.save(ctx.conn)
             return proitem
         except:
@@ -64,12 +64,9 @@ class ProSetModel(BaseModel):
 
         try:
             proitem = await (await ProItemModel.select()
-                .where(ProItemModel.uid == uid)
+                .where((ProItemModel.uid == uid) &
+                    (ProItemModel.parent.uid == self.uid))
                 .execute(ctx.conn)).first()
-
-            if proitem.parent.uid != self.uid:
-                return None
-
             return proitem
         except:
             return None
