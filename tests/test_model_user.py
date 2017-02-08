@@ -25,6 +25,19 @@ class TestBasic(TestCase):
         self.assertIsNone(await create('foo', '1234'))
 
     @tests.async_test
+    async def test_list(self):
+        '''Test list users.'''
+
+        self.assertIsInstance(await create('foo', '1234'), UserModel)
+        self.assertIsNone(await create('foo', '1234'))
+        self.assertIsInstance(await create('bar', '12345'), UserModel)
+        self.assertIsNone(await create('bar', '12345'))
+        users = await get_list()
+        self.assertIsNotNone(users)
+        self.assertEqual(users[0].mail, 'foo')
+        self.assertEqual(users[1].mail, 'bar')
+
+    @tests.async_test
     async def test_update(self):
         '''Test update user.'''
 

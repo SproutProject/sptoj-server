@@ -2,6 +2,7 @@
 
 
 import tests
+import model.user
 from unittest import TestCase
 
 
@@ -95,8 +96,8 @@ class TestGet(TestCase):
     '''Get unittest.'''
 
     @tests.async_test
-    async def test_get_self(self):
-        '''Test get self information.'''
+    async def test_get(self):
+        '''Test get information.'''
 
         response = await tests.request('/user/get', {})
         self.assertEqual(response, 'Error')
@@ -118,6 +119,43 @@ class TestGet(TestCase):
 
         response = await tests.request('/user/get', {})
         self.assertEqual(response, { 'uid': 1 })
+        response = await tests.request('/user/1/get', {})
+        self.assertEqual(response, { 'uid': 1 })
 
         response = await tests.request('/user/100/get', {})
         self.assertEqual(response, 'Error')
+
+        response = await tests.request('/user/register', {
+            'mail': 'bar@example.com',
+            'password': '1234'
+        })
+        self.assertEqual(response, 'Success')
+
+        response = await tests.request('/user/2/get', {})
+        self.assertEqual(response, 'Error')
+
+
+class TestList(TestCase):
+    '''List unittest.'''
+
+    @tests.async_test
+    async def test_list(self):
+        '''Test get self information.'''
+
+        response = await tests.request('/user/register', {
+            'mail': 'foo@example.com',
+            'password': '1234'
+        })
+        self.assertEqual(response, 'Success')
+
+        await model.user.create('admin', '1234',
+            level=model.user.UserLevel.kernel)
+        response = await tests.request('/user/login', {
+            'mail': 'admin',
+            'password': '1234'
+        })
+        self.assertEqual(response, 'Success')
+
+        response = await tests.request('/user/list', {})
+        self.assertNotEqual(response, 'Error')
+        self.assertEqual(len(response), 2)

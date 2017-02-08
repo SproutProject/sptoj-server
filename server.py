@@ -23,14 +23,25 @@ def create_application(engine, redis_pool):
     return tornado.web.Application([
         (r'/user/register', view.user.RegisterHandler, param),
         (r'/user/login', view.user.LoginHandler, param),
+        (r'/user/list', view.user.ListHandler, param),
         (r'/user/get', view.user.GetHandler, param),
         (r'/user/(\d+)/get', view.user.GetHandler, param),
+        #(r'/user/(\d+)/set', view.user.SetHandler, param),
         (r'/problem/update', view.problem.UpdateHandler, param),
         (r'/problem/list', view.problem.ListHandler, param),
         (r'/proset/create', view.proset.CreateHandler, param),
+        #(r'/proset/list', view.proset.ListHandler, param),
+        #(r'/proset/(\d+)/get', view.proset.GetHandler, param),
+        #(r'/proset/(\d+)/set', view.proset.SetHandler, param),
+        #(r'/proset/(\d+)/remove', view.proset.RemoveHandler, param),
         (r'/proset/(\d+)/add', view.proset.AddItemHandler, param),
+        #(r'/proset/(\d+)/list', view.proset.ListItemHandler, param),
         (r'/proset/(\d+)/(\d+)/get', view.proset.GetItemHandler, param),
+        #(r'/proset/(\d+)/(\d+)/set', view.proset.SetItemHandler, param),
+        #(r'/proset/(\d+)/(\d+)/remove', view.proset.RemoveItemHandler, param),
         (r'/proset/(\d+)/(\d+)/submit', view.proset.SubmitHandler, param),
+        #(r'/challenge/list', view.challenge.ListHandler, param),
+        #(r'/challenge/(\d+)/get', view.challenge.GetHandler, param),
     ])
 
 

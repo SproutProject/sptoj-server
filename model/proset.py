@@ -74,7 +74,7 @@ class ProSetModel(BaseModel):
         '''Get the item by the item ID.
 
         Args:
-            uid (int): The item ID.
+            uid (int): Item ID.
 
         Returns:
             ProItem | None

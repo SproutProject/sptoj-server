@@ -82,7 +82,7 @@ async def remove(uid, ctx):
 
 
 @model_context
-async def list(start_uid=0, limit=None, ctx=None):
+async def get_list(start_uid=0, limit=None, ctx=None):
     '''List the problems.
 
     Args:
@@ -90,7 +90,7 @@ async def list(start_uid=0, limit=None, ctx=None):
         limit (int): The size limit.
 
     Returns:
-        [ProblemModel]
+        [ProblemModel] | None
 
     '''
 
@@ -98,8 +98,11 @@ async def list(start_uid=0, limit=None, ctx=None):
     if limit is not None:
         query = query.limit(limit)
 
-    problems = []
-    async for problem in (await query.execute(ctx.conn)):
-        problems.append(problem)
+    try:
+        problems = []
+        async for problem in (await query.execute(ctx.conn)):
+            problems.append(problem)
 
-    return problems
+        return problems
+    except:
+        return None

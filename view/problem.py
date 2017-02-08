@@ -163,11 +163,12 @@ class ListHandler(APIHandler):
             data (object): {}
 
         Returns:
-            [ProblemInterface]
+            [ProblemInterface] | 'Error'
 
         '''
 
-        problems = await model.problem.list()
-        problemifs = [ProblemInterface(problem) for problem in problems]
+        problems = await model.problem.get_list()
+        if problems is None:
+            return 'Error'
 
-        return problemifs
+        return [ProblemInterface(problem) for problem in problems]

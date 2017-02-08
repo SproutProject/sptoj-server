@@ -114,9 +114,12 @@ async def get(uid, ctx):
 
     '''
 
-    return await (await UserModel.select()
-        .where(UserModel.uid == uid)
-        .execute(ctx.conn)).first()
+    try:
+        return await (await UserModel.select()
+            .where(UserModel.uid == uid)
+            .execute(ctx.conn)).first()
+    except:
+        return None
 
 
 @model_context
@@ -137,6 +140,36 @@ async def acquire(token, ctx):
 
     uid = int(uid)
 
-    return await (await UserModel.select()
-        .where(UserModel.uid == uid)
-        .execute(ctx.conn)).first()
+    try:
+        return await (await UserModel.select()
+            .where(UserModel.uid == uid)
+            .execute(ctx.conn)).first()
+    except:
+        return None
+
+
+@model_context
+async def get_list(start_uid=0, limit=None, ctx=None):
+    '''List the users.
+
+    Args:
+        start_uid (int): Lower bound of the user ID.
+        limit (int): The size limit.
+
+    Returns:
+        [UserModel] | None
+
+    '''
+
+    query = UserModel.select().where(UserModel.uid >= start_uid)
+    if limit is not None:
+        query = query.limit(limit)
+
+    try:
+        users = []
+        async for user in (await query.execute(ctx.conn)):
+            users.append(user)
+
+        return users
+    except:
+        return None

@@ -80,8 +80,34 @@ class GetHandler(APIHandler):
 
         '''
 
-        if uid is not None and self.user.uid != int(uid):
+        if uid is None:
+            uid = self.user.uid
+        else:
+            uid = int(uid)
+            if self.user.uid != uid and self.user.level > UserLevel.kernel:
+                return 'Error'
+
+        return UserInterface(await model.user.get(uid))
+
+
+class ListHandler(APIHandler):
+    '''List users handler.'''
+
+    level = UserLevel.kernel
+
+    async def process(self, uid=None, data=None):
+        '''Process the request.
+
+        Args:
+            data (object): {}
+
+        Returns:
+            [UserInterface] | 'Error'
+
+        '''
+
+        users = await model.user.get_list()
+        if users is None:
             return 'Error'
 
-        if uid is None:
-            return UserInterface(self.user)
+        return [UserInterface(user) for user in users]
