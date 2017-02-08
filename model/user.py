@@ -134,7 +134,11 @@ async def acquire(token, ctx):
     
     '''
 
-    uid = ctx.redis.get('TOKEN@{:032x}'.format(int(token, 16)))
+    try:
+        uid = ctx.redis.get('TOKEN@{:032x}'.format(int(token, 16)))
+    except:
+        return None
+
     if uid is None:
         return None
 

@@ -135,6 +135,53 @@ class TestGet(TestCase):
         self.assertEqual(response, 'Error')
 
 
+class TestSet(TestCase):
+    '''Set unittest.'''
+
+    @tests.async_test
+    async def test_get(self):
+        '''Test set information.'''
+
+        response = await tests.request('/user/register', {
+            'mail': 'foo@example.com',
+            'password': '1234'
+        })
+        self.assertEqual(response, 'Success')
+
+        response = await tests.request('/user/login', {
+            'mail': 'foo@example.com',
+            'password': '1234',
+        })
+        self.assertEqual(response, 'Success')
+
+        response = await tests.request('/user/get', {})
+        self.assertNotEqual(response, 'Error')
+        uid = response['uid']
+
+        response = await tests.request('/user/{}/set'.format(uid), {})
+        self.assertEqual(response, 'Success')
+
+        response = await tests.request('/user/{}/set'.format(uid), {
+            'password': '5678',
+        })
+        self.assertEqual(response, 'Success')
+
+        response = await tests.request('/user/get', {})
+        self.assertEqual(response, 'Error')
+
+        response = await tests.request('/user/login', {
+            'mail': 'foo@example.com',
+            'password': '1234',
+        })
+        self.assertEqual(response, 'Error')
+
+        response = await tests.request('/user/login', {
+            'mail': 'foo@example.com',
+            'password': '5678',
+        })
+        self.assertEqual(response, 'Success')
+
+
 class TestList(TestCase):
     '''List unittest.'''
 

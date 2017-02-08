@@ -87,7 +87,45 @@ class GetHandler(APIHandler):
             if self.user.uid != uid and self.user.level > UserLevel.kernel:
                 return 'Error'
 
-        return UserInterface(await model.user.get(uid))
+        user = await model.user.get(uid)
+        if user is None:
+            return 'Error'
+
+        return UserInterface(user)
+
+
+class SetHandler(APIHandler):
+    '''Set user information handler.'''
+
+    level = UserLevel.user
+
+    async def process(self, uid, data=None):
+        '''Process the request.
+
+        Args:
+            data (object): { 'password' (string, optional) }
+
+        Returns:
+            'Success' | 'Error'
+
+        '''
+
+        uid = int(uid)
+        if self.user.uid != uid and self.user.level > UserLevel.kernel:
+            return 'Error'
+
+        user = await model.user.get(uid)
+        if user is None:
+            return 'Error'
+
+        password = data.get('password')
+        if not await user.update(password=password):
+            return 'Error'
+
+        if password is not None:
+            self.clear_cookie('token')
+
+        return 'Success'
 
 
 class ListHandler(APIHandler):

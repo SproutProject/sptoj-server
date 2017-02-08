@@ -26,7 +26,7 @@ def create_application(engine, redis_pool):
         (r'/user/list', view.user.ListHandler, param),
         (r'/user/get', view.user.GetHandler, param),
         (r'/user/(\d+)/get', view.user.GetHandler, param),
-        #(r'/user/(\d+)/set', view.user.SetHandler, param),
+        (r'/user/(\d+)/set', view.user.SetHandler, param),
         (r'/problem/update', view.problem.UpdateHandler, param),
         (r'/problem/list', view.problem.ListHandler, param),
         (r'/proset/create', view.proset.CreateHandler, param),
