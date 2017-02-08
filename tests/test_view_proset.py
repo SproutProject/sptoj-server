@@ -106,7 +106,7 @@ class TestBasic(TestCase):
         })
         self.assertNotEqual(response, 'Error')
         hidden_proitem_uid = response
-        
+
         response = await tests.request('/proset/{}/add'.format(proset_uid), {
              'problem_uid': 2
         })
