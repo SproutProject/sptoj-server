@@ -61,11 +61,11 @@ async def get_proset(user, proset_uid):
     '''
 
     proset = await model.proset.get(proset_uid)
-    if proset.hidden:
-        if user is None:
-            return None
-        if user.level > UserLevel.kernel:
-            return None
+    if proset is None:
+        return None
+
+    if proset.hidden and (user is None or user.level > UserLevel.kernel):
+        return None
 
     return proset
 
@@ -87,7 +87,12 @@ async def get_proitem(user, proset_uid, proitem_uid):
     if proset is None:
         return None
 
-    return await proset.get(proitem_uid)
+    proitem = await proset.get(proitem_uid)
+
+    if proitem.hidden and (user is None or user.level > UserLevel.kernel):
+        return None
+
+    return proitem
 
 
 class CreateHandler(APIHandler):
@@ -216,7 +221,7 @@ class ListHandler(APIHandler):
 
 
 class AddItemHandler(APIHandler):
-    '''Add proitem handler.'''
+    '''Add problem item handler.'''
 
     level = UserLevel.kernel
 
@@ -303,6 +308,68 @@ class GetItemHandler(APIHandler):
             return 'Error'
 
         return ProItemInterface(proitem)
+
+
+class SetItemHandler(APIHandler):
+    '''Set problem item handler.'''
+
+    level = UserLevel.kernel
+
+    async def process(self, proset_uid, proitem_uid, data):
+        '''Process the request.
+
+        Args:
+            proset_uid (int): Problem set ID.
+            proitem_uid (int): Problem item ID.
+            data (object): { 'hidden' (bool) }
+
+        Returns:
+            'Success' | 'Error'
+
+        '''
+
+        proset_uid = int(proset_uid)
+        proitem_uid = int(proitem_uid)
+        proitem = await get_proitem(self.user, proset_uid, proitem_uid)
+        if proitem is None:
+            return 'Error'
+
+        proitem.hidden = data['hidden']
+
+        if not await proitem.update():
+            return 'Error'
+
+        return 'Success'
+
+
+class RemoveItemHandler(APIHandler):
+    '''Remove problem item handler.'''
+
+    level = UserLevel.kernel
+
+    async def process(self, proset_uid, proitem_uid, data):
+        '''Process the request.
+
+        Args:
+            proset_uid (int): Problem set ID.
+            proitem_uid (int): Problem item ID.
+            data (object): {}
+
+        Returns:
+            'Success' | 'Error'
+
+        '''
+
+        proset_uid = int(proset_uid)
+        proitem_uid = int(proitem_uid)
+        proitem = await get_proitem(self.user, proset_uid, proitem_uid)
+        if proitem is None:
+            return 'Error'
+
+        if not await proitem.remove():
+            return 'Error'
+
+        return 'Success'
 
 
 class SubmitHandler(APIHandler):

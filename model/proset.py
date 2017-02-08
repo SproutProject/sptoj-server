@@ -126,7 +126,7 @@ class ProItemModel(BaseModel):
 
     uid = Column('uid', Integer, primary_key=True)
     _parent = Relation(ProSetModel, back_populates='items')
-    problem = Relation(ProblemModel)
+    _problem = Relation(ProblemModel)
     hidden = Column('hidden', Boolean, index=True)
 
     @model_context
