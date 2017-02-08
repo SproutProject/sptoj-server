@@ -58,6 +58,25 @@ class TestBasic(TestCase):
         self.assertIsNone(proset)
 
     @tests.async_test
+    async def test_get_list(self):
+        '''Test get_list.'''
+
+        proset = await create('square', False)
+        self.assertIsInstance(proset, ProSetModel)
+        proset = await create('circle', False)
+        self.assertIsInstance(proset, ProSetModel)
+        proset = await create('tirangle', True)
+        self.assertIsInstance(proset, ProSetModel)
+
+        prosets = await get_list()
+        self.assertIsNotNone(prosets)
+        self.assertEqual(len(prosets), 2)
+
+        prosets = await get_list(hidden=True)
+        self.assertIsNotNone(prosets)
+        self.assertEqual(len(prosets), 3)
+
+    @tests.async_test
     async def test_item(self):
         '''Test item operations.'''
 
@@ -67,15 +86,24 @@ class TestBasic(TestCase):
         proset = await create('square', False)
         self.assertIsInstance(proset, ProSetModel)
 
-        proitem = await proset.add(problem)
+        proitem = await proset.add(problem, False)
         self.assertIsInstance(proitem, ProItemModel)
-        proitems = await proset.list()
-        self.assertEqual(len(proitems), 1)
 
-        proitem = await proset.add(problem)
+        proitem = await proset.add(problem, False)
         self.assertIsInstance(proitem, ProItemModel)
+
+        problem = await model.problem.create(1001, 'deadbeef', { 'name': 'B' })
+        self.assertIsInstance(problem, model.problem.ProblemModel)
+
+        proitem = await proset.add(problem, True)
+        self.assertIsInstance(proitem, ProItemModel)
+
         proitems = await proset.list()
         self.assertEqual(len(proitems), 2)
+        proitems = await proset.list(hidden=True)
+        self.assertEqual(len(proitems), 3)
+
+        self.assertEqual(proitems[2].problem.uid, 1001)
 
         self.assertTrue(await proitems[0].remove())
 

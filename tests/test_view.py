@@ -36,9 +36,11 @@ class TestInterface(TestCase):
         '''Test interface.'''
 
         foo = Foo({'bar': 1234})
+        goo = Foo({'bar': 10})
         self.assertEqual(foo.bar, 1234)
+        self.assertEqual(goo.bar, 10)
 
-        woo = Woo([foo])
+        woo = Woo([foo, goo])
         self.assertEqual(
             json.loads(json.dumps(woo, cls=view.ResponseEncoder)),
-            { 'foos': [{ 'bar': 1234 }] })
+            { 'foos': [{ 'bar': 1234 }, { 'bar': 10 }] })

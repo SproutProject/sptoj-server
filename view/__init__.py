@@ -11,16 +11,6 @@ import tornado.web
 class Attribute(object):
     '''Dummy interface attribute class.'''
 
-    def __get__(self, instance, objtype=None):
-        '''Get the value.'''
-
-        return self.value
-
-    def __set__(self, instance, value):
-        '''Set the value.'''
-
-        self.value = value
-
 
 class Interface(object):
     '''Dummy interface class.'''
@@ -33,10 +23,9 @@ class ResponseEncoder(json.JSONEncoder):
         '''Handle custom types.'''
 
         if isinstance(obj, Interface):
-            return dict((key, ResponseEncoder.default(self, value.__get__(obj)))
+            return dict((key, ResponseEncoder.default(self, getattr(obj, key)))
                 for key, value in type(obj).__dict__.items()
-                    if isinstance(value, Attribute)
-            )
+                    if isinstance(value, Attribute))
         else:
             return obj
 

@@ -48,6 +48,28 @@ class ProItemInterface(Interface):
         self.problem = ProblemInterface(proitem.problem)
 
 
+async def get_proset(user, proset_uid):
+    '''Check permission and get the proset item.
+
+    Args:
+        user (UserModel): User.
+        proset_uid (int): Problem set ID.
+
+    Returns:
+        ProSetModel | None
+
+    '''
+
+    proset = await model.proset.get(proset_uid)
+    if proset.hidden:
+        if user is None:
+            return None
+        if user.level > UserLevel.kernel:
+            return None
+
+    return proset
+
+
 async def get_proitem(user, proset_uid, proitem_uid):
     '''Check permission and get the problem item.
 
@@ -61,12 +83,9 @@ async def get_proitem(user, proset_uid, proitem_uid):
 
     '''
 
-    proset = await model.proset.get(proset_uid)
-    if proset.hidden:
-        if user is None:
-            return None
-        if user.level > UserLevel.kernel:
-            return None
+    proset = await get_proset(user, proset_uid)
+    if proset is None:
+        return None
 
     return await proset.get(proitem_uid)
 
@@ -94,15 +113,118 @@ class CreateHandler(APIHandler):
         return proset.uid
 
 
+class GetHandler(APIHandler):
+    '''Get problem set information handler.'''
+
+    async def process(self, uid, data=None):
+        '''Process the request.
+
+        Args:
+            uid (int): Problem set ID.
+            data (object): {}
+
+        Returns:
+            ProSetInterface | 'Error'
+
+        '''
+
+        uid = int(uid)
+        proset = await get_proset(self.user, uid)
+        if proset is None:
+            return 'Error'
+
+        return ProSetInterface(proset)
+
+
+class SetHandler(APIHandler):
+    '''Set problem set information handler.'''
+
+    level = UserLevel.kernel
+
+    async def process(self, uid, data=None):
+        '''Process the request.
+
+        Args:
+            uid (int): Problem set ID.
+            data (object): { 'name' (string), 'hidden' (bool) }
+
+        Returns:
+            'Success' | 'Error'
+
+        '''
+
+        uid = int(uid)
+        proset = await get_proset(self.user, uid)
+
+        proset.name = data['name']
+        proset.hidden = data['hidden']
+
+        if not await proset.update():
+            return 'Error'
+
+        return 'Success'
+
+
+class RemoveHandler(APIHandler):
+    '''Remove problem set handler.'''
+
+    level = UserLevel.kernel
+
+    async def process(self, uid, data=None):
+        '''Process the request.
+
+        Args:
+            uid (int): Problem set ID.
+            data (object): {}
+
+        Returns:
+            'Success' | 'Error'
+
+        '''
+
+        uid = int(uid)
+        proset = await get_proset(self.user, uid)
+        if not await proset.remove():
+            return 'Error'
+
+        return 'Success'
+
+
+class ListHandler(APIHandler):
+    '''List problem set handler.'''
+
+    async def process(self, data):
+        '''Process the request.
+
+        Args:
+            data (object): {}
+
+        Returns:
+            [ProSetInterface] | 'Error'
+
+        '''
+
+        show_hidden = False
+        if self.user is not None and self.user.level <= UserLevel.kernel:
+            show_hidden = True
+
+        prosets = await model.proset.get_list(hidden=show_hidden)
+        if prosets is None:
+            return 'Error'
+
+        return [ProSetInterface(proset) for proset in prosets]
+
+
 class AddItemHandler(APIHandler):
     '''Add proitem handler.'''
 
     level = UserLevel.kernel
 
-    async def process(self, proset_uid, data):
+    async def process(self, uid, data):
         '''Process the request.
 
         Args:
+            uid (int): Problem set ID.
             data (object): { 'problem_uid' (int) }
 
         Returns:
@@ -110,7 +232,8 @@ class AddItemHandler(APIHandler):
 
         '''
 
-        proset = await model.proset.get(proset_uid)
+        uid = int(uid)
+        proset = await get_proset(self.user, uid)
         if proset is None:
             return 'Error'
 
@@ -119,15 +242,46 @@ class AddItemHandler(APIHandler):
         if problem is None:
             return 'Error'
 
-        proitem = await proset.add(problem)
+        proitem = await proset.add(problem, True)
         if proitem is None:
             return 'Error'
 
         return proitem.uid
 
 
+class ListItemHandler(APIHandler):
+    '''List problem item handler.'''
+
+    async def process(self, uid, data):
+        '''Process the request.
+
+        Args:
+            uid (int): Problem set ID.
+            data (object): {}
+
+        Returns:
+            [ProItemInterface] | 'Error'
+
+        '''
+
+        uid = int(uid)
+        proset = await get_proset(self.user, uid)
+        if proset is None:
+            return 'Error'
+
+        show_hidden = False
+        if self.user is not None and self.user.level <= UserLevel.kernel:
+            show_hidden = True
+
+        proitems = await proset.list(hidden=show_hidden)
+        if proitems is None:
+            return 'Error'
+
+        return [ProItemInterface(proitem) for proitem in proitems]
+
+
 class GetItemHandler(APIHandler):
-    '''Get proitem handler.'''
+    '''Get problem item handler.'''
 
     async def process(self, proset_uid, proitem_uid, data):
         '''Process the request.

@@ -51,7 +51,7 @@ class ProSetModel(BaseModel):
             return False
 
     @model_context
-    async def add(self, problem, ctx):
+    async def add(self, problem, hidden, ctx):
         '''Add a item to the problem set.
 
         Args:
@@ -63,7 +63,7 @@ class ProSetModel(BaseModel):
         '''
 
         try:
-            proitem = ProItemModel(parent=self, problem=problem)
+            proitem = ProItemModel(parent=self, problem=problem, hidden=hidden)
             await proitem.save(ctx.conn)
             return proitem
         except:
@@ -91,12 +91,13 @@ class ProSetModel(BaseModel):
             return None
 
     @model_context
-    async def list(self, start_uid=0, limit=None, ctx=None):
+    async def list(self, start_uid=0, limit=None, hidden=False, ctx=None):
         '''List the items.
 
         Args:
             start_uid (int): Lower bound of the item ID.
             limit (int): The size limit.
+            hidden (bool): Show hidden or not.
 
         Returns:
             [ProItem]
@@ -104,6 +105,10 @@ class ProSetModel(BaseModel):
         '''
 
         query = self.items.where(ProItemModel.uid >= start_uid)
+
+        if not hidden:
+            query = query.where(ProItemModel.hidden == False)
+
         if limit is not None:
             query = query.limit(limit)
 
@@ -122,6 +127,7 @@ class ProItemModel(BaseModel):
     uid = Column('uid', Integer, primary_key=True)
     _parent = Relation(ProSetModel, back_populates='items')
     problem = Relation(ProblemModel)
+    hidden = Column('hidden', Boolean, index=True)
 
     @model_context
     async def update(self, ctx):
@@ -196,5 +202,37 @@ async def get(uid, ctx):
             .where(ProSetModel.uid == uid)
             .execute(ctx.conn)).first()
         return proset
+    except:
+        return None
+
+
+@model_context
+async def get_list(start_uid=0, limit=None, hidden=False, ctx=None):
+    '''List the probelm sets.
+
+    Args:
+        start_uid (int): Lower bound of the problem set ID.
+        limit (int): The size limit.
+        hidden (bool): Show hidden or not.
+
+    Returns:
+        [ProSetModel] | None
+
+    '''
+
+    query = ProSetModel.select().where(ProSetModel.uid >= start_uid)
+
+    if not hidden:
+        query = query.where(ProSetModel.hidden == False)
+
+    if limit is not None:
+        query = query.limit(limit)
+
+    try:
+        prosets = []
+        async for proset in (await query.execute(ctx.conn)):
+            prosets.append(proset)
+
+        return prosets
     except:
         return None
