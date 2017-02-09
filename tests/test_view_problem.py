@@ -13,7 +13,7 @@ class TestUpdate(TestCase):
     async def test_update(self):
         '''Test update.'''
 
-        await model.user.create('foo', '1234')
+        await model.user.create('foo', '1234', 'Foo')
         response = await tests.request('/user/login', {
             'mail': 'foo',
             'password': '1234'
@@ -23,7 +23,7 @@ class TestUpdate(TestCase):
         response = await tests.request('/problem/update', {})
         self.assertEqual(response, 'Error')
 
-        await model.user.create('admin', '1234',
+        await model.user.create('admin', '1234', 'Admin',
             level=model.user.UserLevel.kernel)
         response = await tests.request('/user/login', {
             'mail': 'admin',
@@ -38,7 +38,7 @@ class TestUpdate(TestCase):
     async def test_list(self):
         '''Test list.'''
 
-        await model.user.create('admin', '1234',
+        await model.user.create('admin', '1234', 'Admin',
             level=model.user.UserLevel.kernel)
         response = await tests.request('/user/login', {
             'mail': 'admin',

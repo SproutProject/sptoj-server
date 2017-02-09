@@ -12,9 +12,9 @@ class TestBasic(TestCase):
     async def init_users(self):
         '''Initialize user environment.'''
 
-        await model.user.create('admin', '1234',
+        await model.user.create('admin', '1234', 'Admin',
             level=model.user.UserLevel.kernel)
-        await model.user.create('foo', '1234')
+        await model.user.create('foo', '1234', 'Foo')
         response = await tests.request('/user/login', {
             'mail': 'admin',
             'password': '1234'

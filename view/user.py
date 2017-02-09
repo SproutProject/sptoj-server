@@ -10,6 +10,7 @@ class UserInterface(Interface):
     '''User view interface.'''
 
     uid = Attribute()
+    name = Attribute()
 
     def __init__(self, user):
         '''Initialize.
@@ -20,6 +21,7 @@ class UserInterface(Interface):
         '''
 
         self.uid = user.uid
+        self.name = user.name
 
 
 class RegisterHandler(APIHandler):
@@ -29,14 +31,21 @@ class RegisterHandler(APIHandler):
         '''Process the request.
 
         Args:
-            data (object): { 'mail' (string), 'password' (string) }
+            data (object): {
+                'mail' (string),
+                'password' (string),
+                'name' (string),
+            }
 
         Returns:
             'Success' | 'Eexist'
 
         '''
 
-        if await model.user.create(data['mail'], data['password']) is None:
+        mail = data['mail']
+        password = data['password']
+        name = data['name']
+        if await model.user.create(mail, password, name) is None:
             return 'Eexist'
         else:
             return 'Success'
@@ -103,7 +112,7 @@ class SetHandler(APIHandler):
         '''Process the request.
 
         Args:
-            data (object): { 'password' (string, optional) }
+            data (object): { 'name' (string), 'password' (string, optional) }
 
         Returns:
             'Success' | 'Error'
@@ -117,6 +126,8 @@ class SetHandler(APIHandler):
         user = await model.user.get(uid)
         if user is None:
             return 'Error'
+
+        user.name = data['name']
 
         password = data.get('password')
         if not await user.update(password=password):

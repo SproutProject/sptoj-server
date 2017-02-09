@@ -15,12 +15,14 @@ class TestRegister(TestCase):
 
         response = await tests.request('/user/register', {
             'mail': 'text@example.com',
-            'password': '1234'
+            'password': '1234',
+            'name': 'Foo',
         })
         self.assertEqual(response, 'Success')
         response = await tests.request('/user/register', {
             'mail': 'test@example.com',
-            'password': '1234'
+            'password': '1234',
+            'name': 'Foo',
         })
         self.assertEqual(response, 'Success')
 
@@ -31,12 +33,14 @@ class TestRegister(TestCase):
 
         response = await tests.request('/user/register', {
             'mail': 'test@example.com',
-            'password': '1234'
+            'password': '1234',
+            'name': 'Foo',
         })
         self.assertEqual(response, 'Success')
         response = await tests.request('/user/register', {
             'mail': 'test@example.com',
-            'password': '1234'
+            'password': '1234',
+            'name': 'Foo',
         })
         self.assertEqual(response, 'Eexist')
 
@@ -50,23 +54,25 @@ class TestLogin(TestCase):
 
         response = await tests.request('/user/register', {
             'mail': 'foo@example.com',
-            'password': '1234'
+            'password': '1234',
+            'name': 'Foo',
         })
         self.assertEqual(response, 'Success')
         response = await tests.request('/user/register', {
             'mail': 'bar@example.com',
-            'password': '1234'
+            'password': '1234',
+            'name': 'Foo',
         })
         self.assertEqual(response, 'Success')
 
         response = await tests.request('/user/login', {
             'mail': 'foo@example.com',
-            'password': '1234'
+            'password': '1234',
         })
         self.assertEqual(response, 'Success')
         response = await tests.request('/user/login', {
             'mail': 'bar@example.com',
-            'password': '1234'
+            'password': '1234',
         })
         self.assertEqual(response, 'Success')
 
@@ -76,7 +82,8 @@ class TestLogin(TestCase):
 
         response = await tests.request('/user/register', {
             'mail': 'foo@example.com',
-            'password': '1234'
+            'password': '1234',
+            'name': 'Foo',
         })
         self.assertEqual(response, 'Success')
         
@@ -104,7 +111,8 @@ class TestGet(TestCase):
 
         response = await tests.request('/user/register', {
             'mail': 'foo@example.com',
-            'password': '1234'
+            'password': '1234',
+            'name': 'Foo',
         })
         self.assertEqual(response, 'Success')
 
@@ -118,16 +126,17 @@ class TestGet(TestCase):
         self.assertEqual(response, 'Success')
 
         response = await tests.request('/user/get', {})
-        self.assertEqual(response, { 'uid': 1 })
+        self.assertEqual(response, { 'uid': 1, 'name': 'Foo' })
         response = await tests.request('/user/1/get', {})
-        self.assertEqual(response, { 'uid': 1 })
+        self.assertEqual(response, { 'uid': 1, 'name': 'Foo' })
 
         response = await tests.request('/user/100/get', {})
         self.assertEqual(response, 'Error')
 
         response = await tests.request('/user/register', {
             'mail': 'bar@example.com',
-            'password': '1234'
+            'password': '1234',
+            'name': 'Foo',
         })
         self.assertEqual(response, 'Success')
 
@@ -144,7 +153,8 @@ class TestSet(TestCase):
 
         response = await tests.request('/user/register', {
             'mail': 'foo@example.com',
-            'password': '1234'
+            'password': '1234',
+            'name': 'Foo',
         })
         self.assertEqual(response, 'Success')
 
@@ -158,10 +168,13 @@ class TestSet(TestCase):
         self.assertNotEqual(response, 'Error')
         uid = response['uid']
 
-        response = await tests.request('/user/{}/set'.format(uid), {})
+        response = await tests.request('/user/{}/set'.format(uid), {
+            'name': 'Foo',    
+        })
         self.assertEqual(response, 'Success')
 
         response = await tests.request('/user/{}/set'.format(uid), {
+            'name': 'Foo',    
             'password': '5678',
         })
         self.assertEqual(response, 'Success')
@@ -191,11 +204,12 @@ class TestList(TestCase):
 
         response = await tests.request('/user/register', {
             'mail': 'foo@example.com',
-            'password': '1234'
+            'password': '1234',
+            'name': 'Foo',
         })
         self.assertEqual(response, 'Success')
 
-        await model.user.create('admin', '1234',
+        await model.user.create('admin', '1234', 'Foo',
             level=model.user.UserLevel.kernel)
         response = await tests.request('/user/login', {
             'mail': 'admin',

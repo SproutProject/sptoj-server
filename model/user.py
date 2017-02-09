@@ -23,6 +23,7 @@ class UserModel(BaseModel):
     level = Column('level', Enum(UserLevel))
     _mail = Column('mail', String, index=True, unique=True)
     _password = Column('password', String)
+    name = Column('name', String)
 
     @model_context
     async def update(self, password=None, ctx=None):
@@ -46,12 +47,13 @@ class UserModel(BaseModel):
 
 
 @model_context
-async def create(mail, password, level=UserLevel.user, ctx=None):
+async def create(mail, password, name, level=UserLevel.user, ctx=None):
     '''Create a user.
     
     Args:
         mail (string): User mail.
         password (string): User password.
+        name (string): User name.
 
     Returns:
         UserModel | None
@@ -62,7 +64,7 @@ async def create(mail, password, level=UserLevel.user, ctx=None):
     hashpw = hashpw.decode('utf-8')
 
     try:
-        user = UserModel(level=level, mail=mail, password=hashpw)
+        user = UserModel(level=level, mail=mail, password=hashpw, name=name)
         await user.save(ctx.conn)
         return user
     except:

@@ -15,7 +15,7 @@ class TestBasic(TestCase):
     async def test_operation(self):
         '''Test basic operations.'''
 
-        user = await model.user.create('foo', '1234')
+        user = await model.user.create('foo', '1234', 'Foo')
         problem = await model.problem.create(1000, 'deadbeef', {
             'name': 'foo',
             'test': [
