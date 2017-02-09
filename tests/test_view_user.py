@@ -126,9 +126,9 @@ class TestGet(TestCase):
         self.assertEqual(response, 'Success')
 
         response = await tests.request('/user/get', {})
-        self.assertEqual(response, { 'uid': 1, 'name': 'Foo' })
+        self.assertEqual(response, { 'uid': 1, 'name': 'Foo', 'level': 3 })
         response = await tests.request('/user/1/get', {})
-        self.assertEqual(response, { 'uid': 1, 'name': 'Foo' })
+        self.assertEqual(response, { 'uid': 1, 'name': 'Foo', 'level': 3 })
 
         response = await tests.request('/user/100/get', {})
         self.assertEqual(response, 'Error')
