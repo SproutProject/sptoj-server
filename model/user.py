@@ -35,7 +35,7 @@ class UserModel(BaseModel):
         '''
 
         if password is not None:
-            hashpw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(12))
+            hashpw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(7))
             hashpw = hashpw.decode('utf-8')
             self._password = hashpw
 
@@ -60,7 +60,7 @@ async def create(mail, password, name, level=UserLevel.user, ctx=None):
     
     '''
 
-    hashpw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(12))
+    hashpw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(7))
     hashpw = hashpw.decode('utf-8')
 
     try:

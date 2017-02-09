@@ -17,6 +17,7 @@ class ProSetInterface(Interface):
 
     uid = Attribute()
     name = Attribute()
+    hidden = Attribute()
 
     def __init__(self, proset):
         '''Initialize.
@@ -28,12 +29,14 @@ class ProSetInterface(Interface):
 
         self.uid = proset.uid
         self.name = proset.name
+        self.hidden = proset.hidden
 
 
 class ProItemInterface(Interface):
     '''Problem item view interface.'''
 
     uid = Attribute()
+    hidden = Attribute()
     problem = Attribute()
 
     def __init__(self, proitem):
@@ -45,6 +48,7 @@ class ProItemInterface(Interface):
         '''
 
         self.uid = proitem.uid
+        self.hidden = proitem.hidden
         self.problem = ProblemInterface(proitem.problem)
 
 
