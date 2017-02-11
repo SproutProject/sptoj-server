@@ -94,6 +94,7 @@ class APIHandler(tornado.web.RequestHandler):
         self.engine = engine
         self.redis_pool = redis_pool
 
+    @request_context(resp_json=False)
     async def get(self, *args):
         '''Handle the static requests.
 
@@ -101,6 +102,8 @@ class APIHandler(tornado.web.RequestHandler):
             *args ([object]): URL parameters.
 
         '''
+
+        await self.retrieve(*args)
 
     @request_context(resp_json=True)
     async def post(self, *args):
@@ -120,6 +123,16 @@ class APIHandler(tornado.web.RequestHandler):
         response = await self.process(*args, data=data)
         # Write the response.
         self.finish(json.dumps(response, cls=ResponseEncoder))
+
+    async def retrieve(self, *args):
+        '''Abstract static retrieve method.
+        
+        Args:
+            *args ([object]): URL parameters.
+
+        '''
+
+        raise NotImplementedError
 
     async def process(self, *args, data):
         '''Abstract process method.

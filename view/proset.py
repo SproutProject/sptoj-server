@@ -313,8 +313,30 @@ class GetItemHandler(APIHandler):
 
         return ProItemInterface(proitem)
 
+
 class StaticHandler(APIHandler):
-    pass
+    '''Serve problem static files.'''
+
+    async def retrieve(self, proset_uid, proitem_uid, rel_path):
+        '''Process the request.
+
+        Args:
+            proset_uid (int): Problem set ID.
+            proitem_uid (int): Problem item ID.
+            rel_path (string): Relative path. (Assert it has been normalized.)
+
+        '''
+
+        proitem = await get_proitem(self.user, proset_uid, proitem_uid)
+        if proitem is None:
+            self.set_status(404)
+            return
+
+        problem_uid = proitem.problem.uid
+        self.set_header('x-accel-redirect',
+            '/internal/static/{}/res/http/{}'.format(problem_uid, rel_path))
+
+        self.set_status(200)
 
 
 class SetItemHandler(APIHandler):
