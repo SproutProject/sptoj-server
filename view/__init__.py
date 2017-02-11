@@ -47,6 +47,14 @@ class APIHandler(tornado.web.RequestHandler):
         self.engine = engine
         self.redis_pool = redis_pool
 
+    async def get(self, *args):
+        '''Handle the static requests.
+
+        Args:
+            *args ([object]): URL parameters.
+
+        '''
+
     async def post(self, *args):
         '''Handle the API requests.
 
@@ -61,34 +69,41 @@ class APIHandler(tornado.web.RequestHandler):
         async def async_lambda():
             '''Async lambda function.'''
 
-            async with self.engine.acquire() as conn:
-                # Setup model context.
-                task = asyncio.Task.current_task()
-                task._conn = conn
-                task._redis = redis.StrictRedis(connection_pool=self.redis_pool)
-
-                token = self.get_cookie('token')
-                if token is None:
-                    self.user = None
-                else:
-                    self.user = await model.user.acquire(token)
-
-                if self.level is not None:
-                    if self.user is None or self.user.level > self.level:
-                        self.finish(json.dumps('Error'))
-                        return
-
-                # Get the request data.
-                data = json.loads(self.request.body.decode('utf-8'))
-                # Call process method to handle the request.
-                response = await self.process(*args, data=data)
-                # Write the response.
-                self.finish(json.dumps(response, cls=ResponseEncoder))
+            # Get the request data.
+            data = json.loads(self.request.body.decode('utf-8'))
+            # Call process method to handle the request.
+            response = await self.process(*args, data=data)
+            # Write the response.
+            self.finish(json.dumps(response, cls=ResponseEncoder))
 
         self.set_header('content-type', 'application/json')
 
         loop = asyncio.get_event_loop()
-        await loop.create_task(async_lambda())
+        await loop.create_task(self.task_context(async_lambda))
+
+    async def task_context(self, func, *args):
+        '''Task context.'''
+
+        async with self.engine.acquire() as conn:
+            # Setup model context.
+            task = asyncio.Task.current_task()
+            task._conn = conn
+            task._redis = redis.StrictRedis(connection_pool=self.redis_pool)
+
+            # Get authentication.
+            token = self.get_cookie('token')
+            if token is None:
+                self.user = None
+            else:
+                self.user = await model.user.acquire(token)
+
+            # Check request level
+            if self.level is not None:
+                if self.user is None or self.user.level > self.level:
+                    self.finish(json.dumps('Error'))
+                    return
+
+            return await func(args)
 
     async def process(self, *args, data):
         '''Abstract process method.

@@ -37,6 +37,8 @@ def create_application(engine, redis_pool):
         (r'/proset/(\d+)/add', view.proset.AddItemHandler, param),
         (r'/proset/(\d+)/list', view.proset.ListItemHandler, param),
         (r'/proset/(\d+)/(\d+)/get', view.proset.GetItemHandler, param),
+        (r'/proset/(\d+)/(\d+)/static/(.*)', view.proset.StaticHandler,
+            dict(param, path=config.PROBLEM_DIR)),
         (r'/proset/(\d+)/(\d+)/set', view.proset.SetItemHandler, param),
         (r'/proset/(\d+)/(\d+)/remove', view.proset.RemoveItemHandler, param),
         (r'/proset/(\d+)/(\d+)/submit', view.proset.SubmitHandler, param),

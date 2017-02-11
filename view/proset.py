@@ -313,6 +313,9 @@ class GetItemHandler(APIHandler):
 
         return ProItemInterface(proitem)
 
+class StaticHandler(APIHandler):
+    pass
+
 
 class SetItemHandler(APIHandler):
     '''Set problem item handler.'''
