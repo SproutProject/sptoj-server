@@ -1,7 +1,7 @@
 '''ProSet model module'''
 
 
-from sqlalchemy import Table, Column, Integer, String, Boolean
+from sqlalchemy import Table, Column, Integer, String, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import JSONB
 from model.problem import ProblemModel
 from . import BaseModel, Relation, model_context
@@ -51,7 +51,8 @@ class ProSetModel(BaseModel):
             return False
 
     @model_context
-    async def add(self, problem, hidden, ctx):
+    async def add(self, problem, hidden=True, deadline=None, metadata=None,
+        ctx=None):
         '''Add a item to the problem set.
 
         Args:
@@ -63,7 +64,8 @@ class ProSetModel(BaseModel):
         '''
 
         try:
-            proitem = ProItemModel(parent=self, problem=problem, hidden=hidden)
+            proitem = ProItemModel(parent=self, problem=problem, hidden=hidden,
+                deadline=deadline, metadata=metadata)
             await proitem.save(ctx.conn)
             return proitem
         except:
@@ -100,7 +102,7 @@ class ProSetModel(BaseModel):
             hidden (bool): Show hidden or not.
 
         Returns:
-            [ProItem]
+            [ProItem] | None
 
         '''
 
@@ -112,11 +114,16 @@ class ProSetModel(BaseModel):
         if limit is not None:
             query = query.limit(limit)
 
-        proitems = []
-        async for proitem in (await query.execute(ctx.conn)):
-            proitems.append(proitem)
+        query = query.order_by(ProItemModel.uid)
 
-        return proitems
+        try:
+            proitems = []
+            async for proitem in (await query.execute(ctx.conn)):
+                proitems.append(proitem)
+
+            return proitems
+        except:
+            return None
 
 
 class ProItemModel(BaseModel):
@@ -125,9 +132,11 @@ class ProItemModel(BaseModel):
     __tablename__ = 'proitem'
 
     uid = Column('uid', Integer, primary_key=True)
+    hidden = Column('hidden', Boolean, index=True)
+    deadline = Column('deadline', DateTime(timezone=True), index=True)
+    metadata = Column('metadata', JSONB)
     _parent = Relation(ProSetModel, back_populates='items')
     _problem = Relation(ProblemModel)
-    hidden = Column('hidden', Boolean, index=True)
 
     @model_context
     async def update(self, ctx):
@@ -208,7 +217,7 @@ async def get(uid, ctx):
 
 @model_context
 async def get_list(start_uid=0, limit=None, hidden=False, ctx=None):
-    '''List the probelm sets.
+    '''List the problem sets.
 
     Args:
         start_uid (int): Lower bound of the problem set ID.
@@ -227,6 +236,8 @@ async def get_list(start_uid=0, limit=None, hidden=False, ctx=None):
 
     if limit is not None:
         query = query.limit(limit)
+
+    query = query.order_by(ProSetModel.uid)
 
     try:
         prosets = []

@@ -7,6 +7,7 @@ import model.problem
 import model.challenge
 import os
 import asyncio
+import datetime
 from model.user import UserLevel
 from view.problem import ProblemInterface
 from . import APIHandler, Attribute, Interface
@@ -37,6 +38,8 @@ class ProItemInterface(Interface):
 
     uid = Attribute()
     hidden = Attribute()
+    deadline = Attribute()
+    metadata = Attribute()
     problem = Attribute()
 
     def __init__(self, proitem):
@@ -49,6 +52,8 @@ class ProItemInterface(Interface):
 
         self.uid = proitem.uid
         self.hidden = proitem.hidden
+        self.deadline = proitem.deadline
+        self.metadata = proitem.metadata
         self.problem = ProblemInterface(proitem.problem)
 
 
@@ -350,7 +355,11 @@ class SetItemHandler(APIHandler):
         Args:
             proset_uid (int): Problem set ID.
             proitem_uid (int): Problem item ID.
-            data (object): { 'hidden' (bool) }
+            data (object): {
+                'hidden' (bool),
+                'deadline' (string),
+                'metadata' (object),
+            }
 
         Returns:
             'Success' | 'Error'
@@ -364,6 +373,10 @@ class SetItemHandler(APIHandler):
             return 'Error'
 
         proitem.hidden = data['hidden']
+        deadline = datetime.datetime.strptime(data['deadline'], '%Y/%m/%d%z')
+        # To UTC timezone
+        proitem.deadline = deadline.astimezone()
+        proitem.metadata = data['metadata']
 
         if not await proitem.update():
             return 'Error'

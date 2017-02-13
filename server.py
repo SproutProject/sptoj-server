@@ -7,6 +7,7 @@ import view.problem
 import view.proset
 import asyncio
 import tornado.web
+import tornado.options
 import tornado.platform.asyncio
 import redis
 import aiopg.sa
@@ -65,4 +66,5 @@ def start_server():
 
 
 if __name__ == '__main__':
+    tornado.options.parse_command_line()
     start_server()

@@ -120,6 +120,8 @@ class TestBasic(TestCase):
         response = await tests.request(
             '/proset/{}/{}/set'.format(proset_uid, proitem_uid), {
                 'hidden': False,   
+                'deadline': '1984/1/23+0100',
+                'metadata': None,
             })
         self.assertEqual(response, 'Success')
 

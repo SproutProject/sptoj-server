@@ -4,6 +4,7 @@
 import model.user
 import json
 import asyncio
+import datetime
 import redis
 import tornado.web
 
@@ -22,7 +23,9 @@ class ResponseEncoder(json.JSONEncoder):
     def default(self, obj):
         '''Handle custom types.'''
 
-        if isinstance(obj, Interface):
+        if isinstance(obj, datetime.datetime):
+            return obj.isoformat()
+        elif isinstance(obj, Interface):
             return dict((key, ResponseEncoder.default(self, getattr(obj, key)))
                 for key, value in type(obj).__dict__.items()
                     if isinstance(value, Attribute))
@@ -126,7 +129,7 @@ class APIHandler(tornado.web.RequestHandler):
 
     async def retrieve(self, *args):
         '''Abstract static retrieve method.
-        
+
         Args:
             *args ([object]): URL parameters.
 
