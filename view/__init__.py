@@ -4,9 +4,9 @@
 import model.user
 import json
 import asyncio
-import datetime
 import redis
 import tornado.web
+from datetime import datetime
 
 
 class Attribute(object):
@@ -23,7 +23,7 @@ class ResponseEncoder(json.JSONEncoder):
     def default(self, obj):
         '''Handle custom types.'''
 
-        if isinstance(obj, datetime.datetime):
+        if isinstance(obj, datetime):
             return obj.isoformat()
         elif isinstance(obj, Interface):
             return dict((key, ResponseEncoder.default(self, getattr(obj, key)))

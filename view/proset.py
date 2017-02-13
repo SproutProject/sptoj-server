@@ -7,7 +7,7 @@ import model.problem
 import model.challenge
 import os
 import asyncio
-import datetime
+from datetime import datetime
 from model.user import UserLevel
 from view.problem import ProblemInterface
 from . import APIHandler, Attribute, Interface
@@ -97,6 +97,8 @@ async def get_proitem(user, proset_uid, proitem_uid):
         return None
 
     proitem = await proset.get(proitem_uid)
+    if proitem is None:
+        return None
 
     if proitem.hidden and (user is None or user.level > UserLevel.kernel):
         return None
@@ -373,9 +375,13 @@ class SetItemHandler(APIHandler):
             return 'Error'
 
         proitem.hidden = data['hidden']
-        deadline = datetime.datetime.strptime(data['deadline'], '%Y/%m/%d%z')
-        # To UTC timezone
-        proitem.deadline = deadline.astimezone()
+        if data['deadline'] is None:
+            deadline = None
+        else:
+            # To UTC timezone
+            deadline = datetime.strptime(data['deadline'], '%Y/%m/%d%z')
+            deadline = deadline.astimezone()
+        proitem.deadline = deadline
         proitem.metadata = data['metadata']
 
         if not await proitem.update():

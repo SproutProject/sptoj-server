@@ -3,6 +3,7 @@
 import tests
 import view
 import json
+from datetime import datetime
 from unittest import TestCase
 
 
@@ -35,12 +36,16 @@ class TestInterface(TestCase):
     async def test_interface(self):
         '''Test interface.'''
 
-        foo = Foo({'bar': 1234})
+        date = datetime.strptime('1970/01/01+0800', '%Y/%m/%d%z')
+        foo = Foo({'bar': date})
         goo = Foo({'bar': 10})
-        self.assertEqual(foo.bar, 1234)
+        self.assertEqual(foo.bar, date)
         self.assertEqual(goo.bar, 10)
 
         woo = Woo([foo, goo])
         self.assertEqual(
             json.loads(json.dumps(woo, cls=view.ResponseEncoder)),
-            { 'foos': [{ 'bar': 1234 }, { 'bar': 10 }] })
+            { 'foos': [
+                { 'bar': date.isoformat() },
+                { 'bar': 10 }
+            ] })
