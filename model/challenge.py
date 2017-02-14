@@ -2,9 +2,11 @@
 
 
 import enum
-from sqlalchemy import Table, Column,Integer, String, Enum
+from datetime import datetime
+from sqlalchemy import Table, Column,Integer, String, Enum, DateTime
 from sqlalchemy.dialects.postgresql import JSONB
 from model.user import UserModel
+from model.proset import ProSetModel, ProItemModel
 from model.problem import ProblemModel
 from . import BaseModel, Relation, model_context
 
@@ -24,6 +26,8 @@ class ChallengeModel(BaseModel):
     uid = Column('uid', Integer, primary_key=True)
     _revision = Column('revision', String)
     _state = Column('state', Enum(JudgeState))
+    timestamp = Column('timestamp', DateTime(timezone=True), index=True)
+    metadata = Column('metadata', JSONB)
     _submitter = Relation(UserModel, back_populates="challenges")
     _problem = Relation(ProblemModel, back_populates="challenges")
 
@@ -46,6 +50,43 @@ class ChallengeModel(BaseModel):
         except:
             return False
 
+    @model_context
+    async def list(self, ctx):
+        '''List subtasks.
+        
+        Returns:
+            [SubtaskModel] | None
+        
+        '''
+
+        query = self.subtasks.order_by(SubtaskModel.index)
+
+        try:
+            subtasks = []
+            async for subtask in (await query.execute(ctx.conn)):
+                subtasks.append(subtask)
+            
+            return subtasks
+        except:
+            return None
+
+    @model_context
+    async def is_hidden(self, ctx):
+        '''Check if the challenge is hidden.
+        
+        Returns:
+            True | False
+        
+        '''
+
+        problem_uid = self.problem.uid
+
+        query = (ProItemModel.select()
+            .where((ProItemModel.problem.uid == problem_uid) &
+                (ProItemModel.hidden == False) &
+                (ProItemModel.parent.hidden == False)))
+        return (await query.execute(ctx.conn)).rowcount == 0
+
 
 class SubtaskModel(BaseModel):
     '''Subtask model.'''
@@ -53,6 +94,7 @@ class SubtaskModel(BaseModel):
     __tablename__ = 'subtask'
 
     uid = Column('uid', Integer, primary_key=True)
+    _index = Column('index', Integer, index=True)
     _state = Column('state', Enum(JudgeState))
     metadata = Column('metadata', JSONB)
     _challenge = Relation(ChallengeModel, back_populates="subtasks")
@@ -76,12 +118,13 @@ async def create(submitter, problem, ctx):
 
         async with ctx.conn.begin():
             challenge = ChallengeModel(revision=problem.revision,
-                state=JudgeState.pending, submitter=submitter, problem=problem)
+                state=JudgeState.pending, timestamp=datetime.now(), metadata={},
+                submitter=submitter, problem=problem)
             await challenge.save(ctx.conn)
 
-            for test in tests:
-                subtask = SubtaskModel(state=JudgeState.pending, metadata=test,
-                    challenge=challenge)
+            for idx, test in enumerate(tests):
+                subtask = SubtaskModel(index=idx, state=JudgeState.pending,
+                    metadata=test, challenge=challenge)
                 await subtask.save(ctx.conn)
 
         return challenge

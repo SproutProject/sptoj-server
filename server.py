@@ -5,6 +5,7 @@ import config
 import view.user
 import view.problem
 import view.proset
+import view.challenge
 import asyncio
 import tornado.web
 import tornado.options
@@ -43,7 +44,7 @@ def create_application(engine, redis_pool):
         (r'/proset/(\d+)/(\d+)/remove', view.proset.RemoveItemHandler, param),
         (r'/proset/(\d+)/(\d+)/submit', view.proset.SubmitHandler, param),
         #(r'/challenge/list', view.challenge.ListHandler, param),
-        #(r'/challenge/(\d+)/get', view.challenge.GetHandler, param),
+        (r'/challenge/(\d+)/get', view.challenge.GetHandler, param),
     ])
 
 

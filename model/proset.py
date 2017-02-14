@@ -51,7 +51,7 @@ class ProSetModel(BaseModel):
             return False
 
     @model_context
-    async def add(self, problem, hidden=True, deadline=None, metadata=None,
+    async def add(self, problem, hidden=True, deadline=None, metadata={},
         ctx=None):
         '''Add a item to the problem set.
 

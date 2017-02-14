@@ -341,7 +341,7 @@ class StaticHandler(APIHandler):
 
         problem_uid = proitem.problem.uid
         self.set_header('x-accel-redirect',
-            '/internal/static/{}/res/http/{}'.format(problem_uid, rel_path))
+            '/internal/static/{}/http/{}'.format(problem_uid, rel_path))
 
         self.set_status(200)
 
