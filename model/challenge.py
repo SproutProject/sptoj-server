@@ -4,11 +4,12 @@
 import enum
 from datetime import datetime
 from sqlalchemy import Table, Column,Integer, String, Enum, DateTime
+from sqlalchemy.sql.expression import func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from model.user import UserModel
 from model.proset import ProSetModel, ProItemModel
 from model.problem import ProblemModel
-from . import BaseModel, Relation, model_context
+from . import BaseModel, Relation, model_context, select
 
 
 @enum.unique
@@ -16,6 +17,18 @@ class JudgeState(enum.IntEnum):
     pending = 0
     running = 1
     done = 2
+
+
+@enum.unique
+class JudgeResult(enum.IntEnum):
+    STATUS_NONE = 0
+    STATUS_AC = 1
+    STATUS_WA = 2
+    STATUS_RE = 3
+    STATUS_TLE = 4
+    STATUS_MLE = 5
+    STATUS_CE = 6
+    STATUS_ERR = 7
 
 
 class ChallengeModel(BaseModel):
@@ -30,6 +43,62 @@ class ChallengeModel(BaseModel):
     metadata = Column('metadata', JSONB)
     _submitter = Relation(UserModel, back_populates="challenges")
     _problem = Relation(ProblemModel, back_populates="challenges")
+
+    @model_context
+    async def update_subtask(self, index, state, metadata=None, ctx=None):
+        '''Update the subtask.
+
+        Args:
+            index (int): Subtask index.
+            state (Judge)
+
+        Returns:
+            True | False
+
+        '''
+
+        try:
+            async with ctx.conn.begin() as transaction:
+                subtask = (await (await self.subtasks
+                    .where(SubtaskModel.index == index)
+                    .execute(ctx.conn)).first())
+                subtask._state = state
+                if metadata is not None:
+                    subtask.metadata = metadata
+                await subtask.save(ctx.conn)
+
+                table = self.subtasks.alias().expr
+                state = (await (await select([func.min(table.c.state)], int)
+                    .select_from(table)
+                    .execute(ctx.conn)).scalar())
+
+                self._state = state
+                if self.state == JudgeState.done:
+                    total_mem = 0
+                    total_runtime = 0
+                    result = 0
+                    verdict = ''
+                    for subtask in await self.list():
+                        total_mem += subtask.metadata['memory']
+                        total_runtime += subtask.metadata['runtime']
+                        result = max(result, subtask.metadata['result'])
+                        # Get compile error information.
+                        if result == JudgeResult.STATUS_CE and verdict == '':
+                            # All compile error verdicts are same.
+                            verdict = subtask.metadata['verdict'][0]
+
+                    self.metadata = {
+                        'memory': total_mem,
+                        'runtime': total_runtime,
+                        'result': result,
+                        'verdict': verdict,
+                    }
+
+                await self.save(ctx.conn)
+
+            return True
+        except:
+            return False
 
     @model_context
     async def remove(self, ctx):
@@ -53,10 +122,10 @@ class ChallengeModel(BaseModel):
     @model_context
     async def list(self, ctx):
         '''List subtasks.
-        
+
         Returns:
             [SubtaskModel] | None
-        
+
         '''
 
         query = self.subtasks.order_by(SubtaskModel.index)
@@ -65,7 +134,7 @@ class ChallengeModel(BaseModel):
             subtasks = []
             async for subtask in (await query.execute(ctx.conn)):
                 subtasks.append(subtask)
-            
+
             return subtasks
         except:
             return None
@@ -73,10 +142,10 @@ class ChallengeModel(BaseModel):
     @model_context
     async def is_hidden(self, ctx):
         '''Check if the challenge is hidden.
-        
+
         Returns:
             True | False
-        
+
         '''
 
         problem_uid = self.problem.uid
@@ -124,7 +193,7 @@ async def create(submitter, problem, ctx):
 
             for idx, test in enumerate(tests):
                 subtask = SubtaskModel(index=idx, state=JudgeState.pending,
-                    metadata=test, challenge=challenge)
+                    metadata={}, challenge=challenge)
                 await subtask.save(ctx.conn)
 
         return challenge

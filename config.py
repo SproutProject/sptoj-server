@@ -28,6 +28,8 @@ DB_URL = 'postgresql://{}:{}@{}:{}/{}'.format(
 REDIS_URL = 'redis://@{}:{}/0'.format(
     environ.get('REDISHOST'), environ.get('REDISPORT'))
 
+JUDGE_URL = environ.get('JUDGEURL')
+
 PROBLEM_DIR = environ.get('PROBLEMDIR')
 CODE_DIR = environ.get('CODEDIR')
 CODE_LIMIT = int(environ.get('CODELIMIT'))

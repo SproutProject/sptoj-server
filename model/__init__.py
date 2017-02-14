@@ -242,6 +242,14 @@ class ShadowResult(object):
         else:
             return self.typ(result)
 
+    async def scalar(self):
+
+        result = await self.results.scalar()
+        if result is None:
+            return None
+        else:
+            return self.typ(result)
+
 
 class BaseModel(object, metaclass=ShadowMeta):
 
@@ -376,6 +384,18 @@ class BaseModel(object, metaclass=ShadowMeta):
     def join(cls, other, *args, **kwargs):
 
         return ShadowExpr(cls._table.join(other._table, *args, **kwargs))
+
+
+def select(fields, cls=None):
+
+    query_fields = []
+    for field in fields:
+        if isinstance(field, BaseModel):
+            field = field._table
+
+        query_fields.append(field)
+
+    return ShadowExpr(sa.select(query_fields), typ=cls)
 
 
 def model_context(func):

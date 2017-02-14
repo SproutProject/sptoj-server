@@ -5,6 +5,7 @@ import config
 import model.proset
 import model.problem
 import model.challenge
+import view.challenge
 import os
 import asyncio
 from datetime import datetime
@@ -463,8 +464,8 @@ class SubmitHandler(APIHandler):
             await challenge.remove()
             return 'Error'
 
-        # Queue the challange.
-        loop.create_task(SubmitHandler.emit_challenge(challenge, code_path))
+        # Wait the challange.
+        await view.challenge.emit_challenge(challenge, code_path)
 
         return challenge.uid
 
@@ -481,7 +482,7 @@ class SubmitHandler(APIHandler):
         '''
 
         code_root = os.path.join(config.CODE_DIR, '{}'.format(challenge_uid))
-        code_main = os.path.join(code_root, 'main')
+        code_main = os.path.join(code_root, 'main.cpp')
         try:
             os.mkdir(code_root, mode=0o755)
             with open(code_main, 'w') as main_file:
@@ -489,12 +490,3 @@ class SubmitHandler(APIHandler):
             return code_main
         except:
             return None
-
-    async def emit_challenge(challenge, code_path):
-        '''Emit the challenge and update the results.
-
-        Args:
-            challenge (ChallengeModel): Challenge.
-            code_path (string): File path of the code.
-            
-        '''
