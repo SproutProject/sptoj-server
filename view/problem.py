@@ -3,6 +3,7 @@
 
 import config
 import model.problem
+import view.proset
 import re
 import os
 import stat
@@ -12,39 +13,30 @@ import binascii
 import git
 import asyncio
 from model.user import UserLevel
-from . import APIHandler, Attribute, Interface
+from .interface import *
+from . import APIHandler
 
 
-class ProblemInterface(Interface):
-    '''Problem view interface.'''
+async def get_problem(user, uid):
+    '''Check permission and get the problem.
 
-    uid = Attribute()
-    revision = Attribute()
-    name = Attribute()
-    timelimit = Attribute()
-    memlimit = Attribute()
-    lang = Attribute()
-    checker = Attribute()
-    scoring = Attribute()
-    subtask = Attribute()
+    Args:
+        user (UserModel): User.
+        uid (int): Problem ID.
 
-    def __init__(self, problem):
-        '''Initialize.
+    Returns:
+        ProblemModel | None
 
-        Args:
-            problem (ProblemModel): Problem model.
+    '''
 
-        '''
+    problem = await model.problem.get(uid)
+    if problem is None:
+        return None
 
-        self.uid = problem.uid
-        self.revision = problem.revision
-        self.name = problem.name
-        self.timelimit = problem.metadata['timelimit']
-        self.memlimit = problem.metadata['memlimit']
-        self.lang = problem.metadata['compile']
-        self.checker = problem.metadata['check']
-        self.scoring = problem.metadata['score']
-        self.subtask = [ test['weight'] for test in problem.metadata['test'] ]
+    if await view.proset.is_problem_hidden(user, problem.uid):
+        return None
+
+    return problem
 
 
 class UpdateHandler(APIHandler):
@@ -74,7 +66,7 @@ class UpdateHandler(APIHandler):
         task = loop.run_in_executor(None, UpdateHandler.sync_git,
             config.PROBLEM_DIR)
         revision, paths = await task
-        
+
         uids = set()
         for path in paths:
             #TODO This is for linux only.
@@ -91,13 +83,13 @@ class UpdateHandler(APIHandler):
 
     async def load_problem(self, uid):
         '''Try to load the problem.
-        
+
         Args:
             uid (int): Problem ID.
 
         Returns:
             Object | None
-        
+
         '''
 
         try:
@@ -113,13 +105,13 @@ class UpdateHandler(APIHandler):
 
     def sync_git(git_dir):
         '''Sync the git and return the different paths.
-        
+
         Args:
             git_dir (string): The git directory.
 
         Returns:
             (string, [string])
-        
+
         '''
 
         # Prevent from race condition.
@@ -172,3 +164,117 @@ class ListHandler(APIHandler):
             return 'Error'
 
         return [ProblemInterface(problem) for problem in problems]
+
+
+class GetHandler(APIHandler):
+    '''Get handler.'''
+
+    async def process(self, uid, data):
+        '''Process the request.
+
+        Args:
+            data (object: {})
+
+        Returns:
+            ProblemInterface | 'Error'
+
+        '''
+
+        uid = int(uid)
+        problem = await get_problem(self.user, uid)
+        if problem is None:
+            return 'Error'
+
+        return ProblemInterface(problem)
+
+
+class StaticHandler(APIHandler):
+    '''Serve problem static files.'''
+
+    async def retrieve(self, uid, rel_path):
+        '''Process the request.
+
+        Args:
+            uid (int): Problem ID.
+            rel_path (string): Relative path. (Assert it has been normalized.)
+
+        '''
+
+        uid = int(uid)
+        problem = await get_problem(self.user, uid)
+        if problem is None:
+            self.set_status(404)
+            return
+
+        self.set_header('x-accel-redirect',
+            '/internal/static/{}/http/{}'.format(problem.uid, rel_path))
+
+        self.set_status(200)
+
+
+class SubmitHandler(APIHandler):
+    '''Submit handler.'''
+
+    level = UserLevel.user
+
+    async def process(self, uid, data):
+        '''Process the request.
+
+        Args:
+            uid (int): Problem ID.
+            data (object): { 'code' (string), 'lang' (string) }
+
+        Returns:
+            Int | 'Error'
+
+        '''
+
+        uid = int(uid)
+        code = data['code']
+        lang = data['lang']
+
+        if len(code) > config.CODE_LIMIT:
+            return 'Error'
+
+        problem = await get_problem(self.user, uid)
+        if problem is None:
+            return 'Error'
+
+        challenge = await model.challenge.create(self.user, problem)
+        if challenge is None:
+            return 'Error'
+
+        loop = asyncio.get_event_loop()
+        task = loop.run_in_executor(None, SubmitHandler.store_code,
+            challenge.uid, code)
+        code_path = await task
+        if code_path is None:
+            await challenge.remove()
+            return 'Error'
+
+        # Wait the challange.
+        await view.challenge.emit_challenge(challenge, code_path)
+
+        return challenge.uid
+
+    def store_code(challenge_uid, code):
+        '''Store the submitted code.
+
+        Args:
+            challenge_uid (int): Challenge ID.
+            code (string): Code.
+
+        Returns:
+            String | None
+
+        '''
+
+        code_root = os.path.join(config.CODE_DIR, '{}'.format(challenge_uid))
+        code_main = os.path.join(code_root, 'main.cpp')
+        try:
+            os.mkdir(code_root, mode=0o755)
+            with open(code_main, 'w') as main_file:
+                main_file.write(code)
+            return code_main
+        except:
+            return None

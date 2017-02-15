@@ -202,7 +202,7 @@ async def get(uid, ctx):
         uid (int): Problem set ID.
 
     Returns:
-        ProblemModel | None
+        ProsetModel | None
 
     '''
 

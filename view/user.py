@@ -3,27 +3,8 @@
 
 import model.user
 from model.user import UserLevel
+from .interface import *
 from . import APIHandler, Attribute, Interface
-
-
-class UserInterface(Interface):
-    '''User view interface.'''
-
-    uid = Attribute()
-    name = Attribute()
-    level = Attribute()
-
-    def __init__(self, user):
-        '''Initialize.
-
-        Args:
-            user (UserModel): User model.
-
-        '''
-
-        self.uid = user.uid
-        self.name = user.name
-        self.level = int(user.level)
 
 
 class RegisterHandler(APIHandler):

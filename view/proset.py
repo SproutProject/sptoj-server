@@ -9,53 +9,10 @@ import view.challenge
 import os
 import asyncio
 from datetime import datetime
+from model import model_context
 from model.user import UserLevel
-from view.problem import ProblemInterface
+from .interface import *
 from . import APIHandler, Attribute, Interface
-
-
-class ProSetInterface(Interface):
-    '''Problem set view interface.'''
-
-    uid = Attribute()
-    name = Attribute()
-    hidden = Attribute()
-
-    def __init__(self, proset):
-        '''Initialize.
-
-        Args:
-            proset (ProSetModel): Problem set model.
-
-        '''
-
-        self.uid = proset.uid
-        self.name = proset.name
-        self.hidden = proset.hidden
-
-
-class ProItemInterface(Interface):
-    '''Problem item view interface.'''
-
-    uid = Attribute()
-    hidden = Attribute()
-    deadline = Attribute()
-    metadata = Attribute()
-    problem = Attribute()
-
-    def __init__(self, proitem):
-        '''Initialize.
-
-        Args:
-            proitem (ProItemModel): Problem item model.
-
-        '''
-
-        self.uid = proitem.uid
-        self.hidden = proitem.hidden
-        self.deadline = proitem.deadline
-        self.metadata = proitem.metadata
-        self.problem = ProblemInterface(proitem.problem)
 
 
 async def get_proset(user, proset_uid):
@@ -93,18 +50,37 @@ async def get_proitem(user, proset_uid, proitem_uid):
 
     '''
 
-    proset = await get_proset(user, proset_uid)
-    if proset is None:
-        return None
-
     proitem = await proset.get(proitem_uid)
     if proitem is None:
         return None
 
-    if proitem.hidden and (user is None or user.level > UserLevel.kernel):
-        return None
+    if proitem.parent.hidden or proitem.hidden:
+        if user is None or user.level > UserLevel.kernel:
+            return None
 
     return proitem
+
+
+@model_context
+async def is_problem_hidden(user, problem_uid, ctx):
+    '''Check if the problem is hidden.
+
+    Returns:
+        True | False
+
+    '''
+
+    if user is not None and user.level <= UserLevel.kernel:
+        return False
+
+    try:
+        query = (ProItemModel.select()
+            .where((ProItemModel.problem.uid == problem_uid) &
+                (ProItemModel.hidden == False) &
+                (ProItemModel.parent.hidden == False)))
+        return (await query.execute(ctx.conn)).rowcount == 0
+    except:
+        return True
 
 
 class CreateHandler(APIHandler):
@@ -322,31 +298,6 @@ class GetItemHandler(APIHandler):
         return ProItemInterface(proitem)
 
 
-class StaticHandler(APIHandler):
-    '''Serve problem static files.'''
-
-    async def retrieve(self, proset_uid, proitem_uid, rel_path):
-        '''Process the request.
-
-        Args:
-            proset_uid (int): Problem set ID.
-            proitem_uid (int): Problem item ID.
-            rel_path (string): Relative path. (Assert it has been normalized.)
-
-        '''
-
-        proitem = await get_proitem(self.user, proset_uid, proitem_uid)
-        if proitem is None:
-            self.set_status(404)
-            return
-
-        problem_uid = proitem.problem.uid
-        self.set_header('x-accel-redirect',
-            '/internal/static/{}/http/{}'.format(problem_uid, rel_path))
-
-        self.set_status(200)
-
-
 class SetItemHandler(APIHandler):
     '''Set problem item handler.'''
 
@@ -419,74 +370,3 @@ class RemoveItemHandler(APIHandler):
             return 'Error'
 
         return 'Success'
-
-
-class SubmitHandler(APIHandler):
-    '''Submit handler.'''
-
-    level = UserLevel.user
-
-    async def process(self, proset_uid, proitem_uid, data):
-        '''Process the request.
-
-        Args:
-            proset_uid (int): Problem set ID.
-            proitem_uid (int): Problem item ID.
-            data (object): { 'code' (string), 'lang' (string) }
-
-        Returns:
-            Int | 'Error'
-
-        '''
-
-        proset_uid = int(proset_uid)
-        proitem_uid = int(proitem_uid)
-        code = data['code']
-        lang = data['lang']
-
-        if len(code) > config.CODE_LIMIT:
-            return 'Error'
-
-        proitem = await get_proitem(self.user, proset_uid, proitem_uid)
-        if proitem is None:
-            return 'Error'
-
-        challenge = await model.challenge.create(self.user, proitem.problem)
-        if challenge is None:
-            return 'Error'
-
-        loop = asyncio.get_event_loop()
-
-        task = loop.run_in_executor(None, SubmitHandler.store_code,
-            challenge.uid, code)
-        code_path = await task
-        if code_path is None:
-            await challenge.remove()
-            return 'Error'
-
-        # Wait the challange.
-        await view.challenge.emit_challenge(challenge, code_path)
-
-        return challenge.uid
-
-    def store_code(challenge_uid, code):
-        '''Store the submitted code.
-
-        Args:
-            challenge_uid (int): Challenge ID.
-            code (string): Code.
-
-        Returns:
-            String | None
-
-        '''
-
-        code_root = os.path.join(config.CODE_DIR, '{}'.format(challenge_uid))
-        code_main = os.path.join(code_root, 'main.cpp')
-        try:
-            os.mkdir(code_root, mode=0o755)
-            with open(code_main, 'w') as main_file:
-                main_file.write(code)
-            return code_main
-        except:
-            return None
