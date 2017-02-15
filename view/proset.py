@@ -143,7 +143,13 @@ class SetHandler(APIHandler):
 
         Args:
             uid (int): Problem set ID.
-            data (object): { 'name' (string), 'hidden' (bool) }
+            data (object): {
+                'name' (string),
+                'hidden' (bool),
+                'metadata' ({
+                    category (int, optional),
+                }),
+            }
 
         Returns:
             'Success' | 'Error'
@@ -153,8 +159,12 @@ class SetHandler(APIHandler):
         uid = int(uid)
         proset = await get_proset(self.user, uid)
 
-        proset.name = data['name']
-        proset.hidden = data['hidden']
+        proset.name = str(data['name'])
+        proset.hidden = bool(data['hidden'])
+
+        metadata = data['metadata']
+        if 'category' in metadata:
+            proset.metadata['category'] = int(metadata['category'])
 
         if not await proset.update():
             return 'Error'
@@ -333,7 +343,8 @@ class SetItemHandler(APIHandler):
         if proitem is None:
             return 'Error'
 
-        proitem.hidden = data['hidden']
+        proitem.hidden = bool(data['hidden'])
+
         if data['deadline'] is None:
             deadline = None
         else:
@@ -341,7 +352,10 @@ class SetItemHandler(APIHandler):
             deadline = datetime.strptime(data['deadline'], '%Y/%m/%d%z')
             deadline = deadline.astimezone()
         proitem.deadline = deadline
-        proitem.metadata = data['metadata']
+
+        metadata = data['metadata']
+        if 'section' in metadata:
+            proitem.metadata['section'] = str(metadata['section'])
 
         if not await proitem.update():
             return 'Error'

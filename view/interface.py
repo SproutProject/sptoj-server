@@ -66,6 +66,7 @@ class ProSetInterface(Interface):
     uid = Attribute()
     name = Attribute()
     hidden = Attribute()
+    metadata = Attribute()
 
     def __init__(self, proset):
         '''Initialize.
@@ -78,6 +79,7 @@ class ProSetInterface(Interface):
         self.uid = proset.uid
         self.name = proset.name
         self.hidden = proset.hidden
+        self.metadata = proset.metadata
 
 
 class ProItemInterface(Interface):

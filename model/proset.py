@@ -15,6 +15,7 @@ class ProSetModel(BaseModel):
     uid = Column('uid', Integer, primary_key=True)
     name = Column('name', String, index=True)
     hidden = Column('hidden', Boolean, index=True)
+    metadata = Column('metadata', JSONB)
 
     @model_context
     async def update(self, ctx):
@@ -174,7 +175,7 @@ class ProItemModel(BaseModel):
 
 
 @model_context
-async def create(name, hidden, ctx):
+async def create(name, hidden, metadata={}, ctx=None):
     '''Create a problem set.
 
     Args:
@@ -187,7 +188,7 @@ async def create(name, hidden, ctx):
     '''
 
     try:
-        proset = ProSetModel(name=name, hidden=hidden)
+        proset = ProSetModel(name=name, hidden=hidden, metadata=metadata)
         await proset.save(ctx.conn)
         return proset
     except:

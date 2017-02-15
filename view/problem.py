@@ -120,21 +120,19 @@ class UpdateHandler(APIHandler):
         fcntl.flock(lockfd, fcntl.LOCK_EX)
 
         try:
+            diff_paths = set()
             repo = git.Repo(git_dir)
             current = repo.heads.current
             upstream = repo.heads.master
-            if current.commit == upstream.commit:
-                return []
+            if current.commit != upstream.commit:
+                diffs = upstream.commit.diff(current.commit)
+                for diff in diffs:
+                    diff_paths.add(diff.a_path)
+                    diff_paths.add(diff.b_path)
 
-            diffs = upstream.commit.diff(current.commit)
-            diff_paths = set()
-            for diff in diffs:
-                diff_paths.add(diff.a_path)
-                diff_paths.add(diff.b_path)
-
-            current.commit = upstream.commit
-            current.checkout()
-            repo.head.reset(index=True, working_tree=True)
+                current.commit = upstream.commit
+                current.checkout()
+                repo.head.reset(index=True, working_tree=True)
 
             revision = binascii.hexlify(current.commit.binsha).decode('utf-8')
             return (revision, list(diff_paths))

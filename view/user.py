@@ -2,7 +2,7 @@
 
 
 import model.user
-from model.user import UserLevel
+from model.user import UserLevel, UserCategory
 from .interface import *
 from . import APIHandler, Attribute, Interface
 
@@ -112,9 +112,8 @@ class SetHandler(APIHandler):
         if user is None:
             return 'Error'
 
-        user.name = data['name']
-        user.category = data['category']
-        user.metadata = data['metadata']
+        user.name = str(data['name'])
+        user.category = UserCategory(data['category'])
 
         password = data.get('password')
         if not await user.update(password=password):

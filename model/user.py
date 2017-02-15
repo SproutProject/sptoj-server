@@ -128,6 +128,7 @@ async def gen_token(mail, password, ctx):
     while True:
         token = secrets.token_hex(16)
         if ctx.redis.setnx('TOKEN@{}'.format(token), user.uid):
+            ctx.redis.sadd('TOKENSET@{}'.format(user.uid), token)
             break
 
     return token
