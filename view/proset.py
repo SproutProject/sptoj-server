@@ -50,11 +50,15 @@ async def get_proitem(user, proset_uid, proitem_uid):
 
     '''
 
+    proset = await get_proset(user, proset_uid)
+    if proset is None:
+        return None
+
     proitem = await proset.get(proitem_uid)
     if proitem is None:
         return None
 
-    if proitem.parent.hidden or proitem.hidden:
+    if proitem.hidden:
         if user is None or user.level > UserLevel.kernel:
             return None
 
@@ -177,6 +181,9 @@ class RemoveHandler(APIHandler):
 
         uid = int(uid)
         proset = await get_proset(self.user, uid)
+        if proset is None:
+            return 'Error'
+
         if not await proset.remove():
             return 'Error'
 

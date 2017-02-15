@@ -65,6 +65,7 @@ class GetHandler(APIHandler):
         '''Process the request.
 
         Args:
+            uid (int, optional): User ID
             data (object): {}
 
         Returns:
@@ -91,10 +92,11 @@ class SetHandler(APIHandler):
 
     level = UserLevel.user
 
-    async def process(self, uid, data=None):
+    async def process(self, uid, data):
         '''Process the request.
 
         Args:
+            uid (int): User ID
             data (object): { 'name' (string), 'password' (string, optional) }
 
         Returns:
@@ -111,6 +113,8 @@ class SetHandler(APIHandler):
             return 'Error'
 
         user.name = data['name']
+        user.category = data['category']
+        user.metadata = data['metadata']
 
         password = data.get('password')
         if not await user.update(password=password):
@@ -127,7 +131,7 @@ class ListHandler(APIHandler):
 
     level = UserLevel.kernel
 
-    async def process(self, uid=None, data=None):
+    async def process(self, data):
         '''Process the request.
 
         Args:
@@ -143,3 +147,30 @@ class ListHandler(APIHandler):
             return 'Error'
 
         return [UserInterface(user) for user in users]
+
+class RemoveHandler(APIHandler):
+    '''Remove user handler.'''
+
+    level = UserLevel.kernel
+
+    async def process(self, uid, data):
+        '''Process the request.
+
+        Args:
+            uid (int): User ID
+            data (object): {}
+
+        Returns:
+            'Success' | 'Error'
+
+        '''
+
+        uid = int(uid)
+        user = await model.user.get(uid)
+        if user is None:
+            return 'Error'
+
+        if not await user.remove():
+            return 'Error'
+
+        return 'Success'

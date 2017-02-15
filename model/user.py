@@ -5,6 +5,7 @@ import enum
 import bcrypt
 import secrets
 from sqlalchemy import Table, Column, Integer, String, Enum
+from sqlalchemy.dialects.postgresql import JSONB
 from . import BaseModel, model_context
 
 
@@ -12,6 +13,14 @@ from . import BaseModel, model_context
 class UserLevel(enum.IntEnum):
     user = 3
     kernel = 0
+
+
+@enum.unique
+class UserCategory(enum.IntEnum):
+    universe = 0
+    algo = 1
+    clang = 2
+    pylang = 3
 
 
 class UserModel(BaseModel):
@@ -24,6 +33,8 @@ class UserModel(BaseModel):
     _mail = Column('mail', String, index=True, unique=True)
     _password = Column('password', String)
     name = Column('name', String)
+    category = Column('category', Enum(UserCategory))
+    metadata = Column('metadata', JSONB)
 
     @model_context
     async def update(self, password=None, ctx=None):
@@ -45,9 +56,26 @@ class UserModel(BaseModel):
         except:
             return False
 
+    @model_context
+    async def remove(self, ctx):
+        '''Remove the user.
+
+        Returns:
+            True | False
+
+        '''
+
+        try:
+            return (await UserModel.delete()
+                .where(UserModel.uid == self.uid)
+                .execute(ctx.conn)).rowcount == 1
+        except:
+            return False
+
 
 @model_context
-async def create(mail, password, name, level=UserLevel.user, ctx=None):
+async def create(mail, password, name, level=UserLevel.user,
+    category=UserCategory.universe, metadata={}, ctx=None):
     '''Create a user.
     
     Args:
@@ -64,7 +92,8 @@ async def create(mail, password, name, level=UserLevel.user, ctx=None):
     hashpw = hashpw.decode('utf-8')
 
     try:
-        user = UserModel(level=level, mail=mail, password=hashpw, name=name)
+        user = UserModel(level=level, mail=mail, password=hashpw, name=name,
+            category=category, metadata=metadata)
         await user.save(ctx.conn)
         return user
     except:
@@ -168,6 +197,7 @@ async def get_list(start_uid=0, limit=None, ctx=None):
     '''
 
     query = UserModel.select().where(UserModel.uid >= start_uid)
+
     if limit is not None:
         query = query.limit(limit)
 
