@@ -35,7 +35,7 @@ class ProblemModel(BaseModel):
             if result == 0:
                 return False
 
-            await model.scoring.change_problem(problem_uid)
+            await model.scoring.change_problem(problem_uid, True)
 
             return True
         except:
@@ -74,10 +74,11 @@ async def create(uid, revision, metadata, ctx):
             revision=revision, metadata=metadata)
         await problem.save(ctx.conn)
 
-        await model.scoring.change_problem(problem.uid)
+        await model.scoring.change_problem(problem.uid, True)
 
         return problem
     except:
+        raise
         return None
 
 

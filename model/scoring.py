@@ -60,7 +60,7 @@ class RateScoreModel(BaseModel):
 
 
 async def update_rate_count(category, spec_problem_uid=None,
-    update_problem=False, conn=None):
+    problem_updated=False, conn=None):
     '''Update rate count.
 
     Args:
@@ -107,12 +107,12 @@ async def update_rate_count(category, spec_problem_uid=None,
             TestWeightModel.weight))
 
     async with conn.begin() as transcation:
-        if update_problem:
+        if problem_updated:
             # Update tests and weights.
 
             await TestWeightModel.delete().execute(conn)
 
-            query = await select([
+            query = select([
                     ProblemModel.uid,
                     ProblemModel.metadata['test'].label('test')
                 ])
@@ -276,8 +276,8 @@ async def change_category(old_category=None, new_category=None, ctx=None):
 
 
 @model_context
-async def change_problem(problem_uid, ctx=None):
-    '''Update when the problem changed.
+async def change_problem(problem_uid, problem_updated=False, ctx=None):
+    '''Update the specific problem.
 
     Args:
         problem_uid (int): Problem ID.
@@ -288,7 +288,8 @@ async def change_problem(problem_uid, ctx=None):
         if category == UserCategory.universe:
             continue
 
-        await update_rate_count(category, problem_uid, conn=ctx.conn)
+        await update_rate_count(category, problem_uid, problem_updated,
+            conn=ctx.conn)
         await update_rate_score(category, problem_uid, conn=ctx.conn)
 
 
