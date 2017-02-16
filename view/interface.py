@@ -60,6 +60,30 @@ class ProblemInterface(Interface):
         self.subtask = [ test['weight'] for test in problem.metadata['test'] ]
 
 
+class ProblemRateInterface(Interface):
+    '''Problem subtask view interface.'''
+
+    index = Attribute()
+    count = Attribute()
+    score = Attribute()
+
+    def __init__(self, problem_rate):
+        '''Initialize.
+
+        Args:
+            problem_rate ({
+                index (int),
+                count (int),
+                score (int)
+            }): Problem rate.
+
+        '''
+
+        self.index = problem_rate['index']
+        self.count = problem_rate['count']
+        self.score = problem_rate['score']
+
+
 class ProSetInterface(Interface):
     '''Problem set view interface.'''
 

@@ -164,7 +164,7 @@ async def update_rate_score(category, spec_problem_uid=None, conn=None):
             UserModel.uid.label('user_uid'),
             ProblemModel.uid.label('problem_uid'),
             SubtaskModel.index,
-            ProItemModel.uid.label('proitem_uid'),
+            func.max(ProItemModel.deadline).label('deadline'),
             func.min(ChallengeModel.timestamp).label('timestamp')
         ])
         .select_from(UserModel
@@ -184,20 +184,17 @@ async def update_rate_score(category, spec_problem_uid=None, conn=None):
         base_tbl = base_tbl.where(ProblemModel.uid == spec_problem_uid)
 
     base_tbl = (base_tbl.group_by(UserModel.uid, ProblemModel.uid,
-        SubtaskModel.index, ProItemModel.uid)
+        SubtaskModel.index)
         .alias())
 
     score_query = (select([
             base_tbl.expr,
-            ProItemModel.deadline,
             RateCountModel.score,
         ])
-        .select_from(base_tbl
-            .join(ProItemModel)
-            .join(RateCountModel,
-                (base_tbl.expr.c.problem_uid == RateCountModel.problem_uid) &
-                (base_tbl.expr.c.index == RateCountModel.index),
-                isouter=True)))
+        .select_from(base_tbl.join(RateCountModel,
+            (base_tbl.expr.c.problem_uid == RateCountModel.problem_uid) &
+            (base_tbl.expr.c.index == RateCountModel.index),
+            isouter=True)))
 
     async with conn.begin() as transcation:
         # Remove old data.
@@ -251,7 +248,13 @@ async def refresh(ctx=None):
 
 @model_context
 async def change_category(old_category=None, new_category=None, ctx=None):
-    '''Update when something's category changed.'''
+    '''Update when something's category changed.
+
+    Args:
+        old_category (UserCategory): Old category.
+        new_category (UserCategory): New category.
+
+    '''
 
     if old_category == UserCategory.universe:
         old_category = None
@@ -274,7 +277,12 @@ async def change_category(old_category=None, new_category=None, ctx=None):
 
 @model_context
 async def change_problem(problem_uid, ctx=None):
-    '''Update when the problem changed.'''
+    '''Update when the problem changed.
+
+    Args:
+        problem_uid (int): Problem ID.
+
+    '''
 
     for category in UserCategory:
         if category == UserCategory.universe:
@@ -282,3 +290,45 @@ async def change_problem(problem_uid, ctx=None):
 
         await update_rate_count(category, problem_uid, conn=ctx.conn)
         await update_rate_score(category, problem_uid, conn=ctx.conn)
+
+
+@model_context
+async def get_problem_rate(category, problem_uid, ctx=None):
+    '''Get problem rate for the specific category.
+
+    Args:
+        category (UserCategory): Category.
+        problem_uid (int): Problem ID.
+
+    Returns:
+        [{ 'index' (int), 'count' (int), 'score' (int) }] | None
+
+    '''
+
+    async with ctx.conn.begin() as transcation:
+        result = (await ProItemModel.select()
+            .where(ProItemModel.problem.uid == problem_uid)
+            .where(ProItemModel.parent.metadata['category']
+                .astext.cast(Integer) == int(category))
+            .limit(1)
+            .execute(ctx.conn)).rowcount
+        if result == 0:
+            return None
+
+        query = (TestWeightModel.select()
+            .where(TestWeightModel.problem_uid == problem_uid)
+            .order_by(TestWeightModel.index))
+
+        ret_list = []
+        async for test in await query.execute(ctx.conn):
+            ret_list.append({ 'index': test.index, 'count': 0, 'score': 2000 })
+
+        query = (RateCountModel.select()
+            .where(RateCountModel.category == category)
+            .where(RateCountModel.problem_uid == problem_uid))
+
+        async for rate_count in await query.execute(ctx.conn):
+            ret_list[rate_count.index]['count'] = rate_count.count
+            ret_list[rate_count.index]['score'] = rate_count.score
+
+        return ret_list

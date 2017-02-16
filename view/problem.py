@@ -3,6 +3,7 @@
 
 import config
 import model.problem
+import model.scoring
 import view.proset
 import re
 import os
@@ -174,7 +175,10 @@ class GetHandler(APIHandler):
             data (object: {})
 
         Returns:
-            ProblemInterface | 'Error'
+            {
+                'problem': ProblemInterface,
+                'rate': [ProblemRateInterface] optional
+            } | 'Error'
 
         '''
 
@@ -183,7 +187,15 @@ class GetHandler(APIHandler):
         if problem is None:
             return 'Error'
 
-        return ProblemInterface(problem)
+        ret = { 'problem': ProblemInterface(problem) }
+
+        if self.user is not None:
+            rate_list = await model.scoring.get_problem_rate(self.user.category,
+                problem.uid)
+            if rate_list is not None:
+                ret['rate'] = [ProblemRateInterface(rate) for rate in rate_list]
+
+        return ret
 
 
 class StaticHandler(APIHandler):
