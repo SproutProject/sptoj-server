@@ -8,10 +8,10 @@ class UserInterface(Interface):
     '''User view interface.'''
 
     uid = Attribute()
+    mail = Attribute()
     name = Attribute()
     level = Attribute()
     category = Attribute()
-    metadata = Attribute()
 
     def __init__(self, user):
         '''Initialize.
@@ -22,10 +22,34 @@ class UserInterface(Interface):
         '''
 
         self.uid = user.uid
+        self.mail = user.mail
         self.name = user.name
         self.level = int(user.level)
         self.category = int(user.category)
-        self.metadata = user.metadata
+
+
+class ProfileInterface(Interface):
+    '''Profile view interface.'''
+
+    uid = Attribute()
+    name = Attribute()
+    category = Attribute()
+    rate = Attribute(optional=True)
+
+    def __init__(self, user, rate=None):
+        '''Initialize.
+
+        Args:
+            user (UserModel): User model.
+            rate (int | None): User rate.
+
+        '''
+
+        self.uid = user.uid
+        self.name = user.name
+        self.category = int(user.category)
+        if rate is not None:
+            self.rate = rate
 
 
 class ProblemInterface(Interface):

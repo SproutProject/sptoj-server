@@ -332,3 +332,27 @@ async def get_problem_rate(category, problem_uid, ctx=None):
             ret_list[rate_count.index]['score'] = rate_count.score
 
         return ret_list
+
+
+@model_context
+async def get_user_rate(user, ctx=None):
+    '''Get user rate.
+
+    Args:
+        user (UserModel): User.
+
+    Returns:
+        Int | None
+
+    '''
+
+    if user.category == UserCategory.universe:
+        return None
+
+    score = await (await select([func.sum(RateScoreModel.score)], int)
+        .where(RateScoreModel.user_uid == user.uid)
+        .execute(ctx.conn)).scalar()
+    if score is None:
+        score = 0
+
+    return score

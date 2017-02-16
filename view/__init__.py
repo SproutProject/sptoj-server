@@ -12,6 +12,16 @@ from datetime import datetime
 class Attribute(object):
     '''Dummy interface attribute class.'''
 
+    def __init__(self, optional=False):
+        '''Initialize.
+
+        Args:
+            optional (bool): Is a optional field.
+
+        '''
+
+        self.optional = optional
+
 
 class Interface(object):
     '''Dummy interface class.'''
@@ -26,9 +36,21 @@ class ResponseEncoder(json.JSONEncoder):
         if isinstance(obj, datetime):
             return obj.isoformat()
         elif isinstance(obj, Interface):
-            return dict((key, ResponseEncoder.default(self, getattr(obj, key)))
-                for key, value in type(obj).__dict__.items()
-                    if isinstance(value, Attribute))
+            ret = {}
+            for key, field in type(obj).__dict__.items():
+                if not isinstance(field, Attribute):
+                    continue
+
+                value = getattr(obj, key)
+                if isinstance(value, Attribute):
+                    if not field.optional:
+                        raise AttributeError
+
+                    continue
+
+                ret[key] = ResponseEncoder.default(self, value)
+
+            return ret
         else:
             return obj
 
@@ -87,11 +109,11 @@ class APIHandler(tornado.web.RequestHandler):
 
     def initialize(self, engine, redis_pool):
         '''Initialize.
-        
+
         Args:
             engine (object): Database engine.
             redis_pool (object): Redis connection pool.
-        
+
         '''
 
         self.engine = engine
@@ -139,7 +161,7 @@ class APIHandler(tornado.web.RequestHandler):
 
     async def process(self, *args, data):
         '''Abstract process method.
-        
+
         Args:
             *args ([object]): URL parameters.
             data (object): API data.

@@ -88,6 +88,31 @@ class GetHandler(APIHandler):
         return UserInterface(user)
 
 
+class ProfileHandler(APIHandler):
+    '''Get profile information handler.'''
+
+    async def process(self, uid, data=None):
+        '''Process the request.
+
+        Args:
+            uid (int): User ID
+            data (object): {}
+
+        Returns:
+            ProfileInterface | 'Error'
+
+        '''
+
+        uid = int(uid)
+        user = await model.user.get(uid)
+        if user is None:
+            return 'Error'
+
+        rate = await model.scoring.get_user_rate(user)
+
+        return ProfileInterface(user, rate)
+
+
 class SetHandler(APIHandler):
     '''Set user information handler.'''
 
