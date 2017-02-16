@@ -50,7 +50,8 @@ class ChallengeModel(BaseModel):
 
         Args:
             index (int): Subtask index.
-            state (Judge)
+            state (JudgeState): Subtask state.
+            metadata (object): Subtask metadata.
 
         Returns:
             True | False
@@ -59,29 +60,42 @@ class ChallengeModel(BaseModel):
 
         try:
             async with ctx.conn.begin() as transaction:
+                # Update subtask.
                 subtask = (await (await self.subtasks
                     .where(SubtaskModel.index == index)
                     .execute(ctx.conn)).first())
+
                 subtask._state = state
+
                 if metadata is not None:
-                    subtask.metadata = metadata
+                    subtask.metadata['memory'] = int(metadata['memory'])
+                    subtask.metadata['runtime'] = int(metadata['runtime'])
+                    subtask.metadata['result'] = int(metadata['result'])
+                    subtask.metadata['verdict'] = [str(verdict)
+                        for verdict in metadata['verdict']]
+
                 await subtask.save(ctx.conn)
 
+                # Get state summary.
                 table = self.subtasks.alias().expr
                 state = (await (await select([func.min(table.c.state)], int)
                     .select_from(table)
                     .execute(ctx.conn)).scalar())
 
                 self._state = state
+
+                # Update metadata.
                 if self.state == JudgeState.done:
                     total_mem = 0
                     total_runtime = 0
                     result = 0
                     verdict = ''
+
                     for subtask in await self.list():
                         total_mem += subtask.metadata['memory']
                         total_runtime += subtask.metadata['runtime']
                         result = max(result, subtask.metadata['result'])
+
                         # Get compile error information.
                         if result == JudgeResult.STATUS_CE and verdict == '':
                             # All compile error verdicts are same.

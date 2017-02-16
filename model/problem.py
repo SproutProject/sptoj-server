@@ -33,6 +33,16 @@ async def create(uid, revision, metadata, ctx):
 
     try:
         name = metadata['name']
+
+        #TODO Format the problem metadata.
+        tests = []
+        for idx, test in enumerate(metadata['test']):
+            tests.append({
+                'weight': int(test['weight']),
+                'data': [int(dataidx) for dataidx in test['data']],
+            })
+        metadata['test'] = tests
+
         problem = ProblemModel(
             uid=uid, name=name, revision=revision, metadata=metadata)
         await problem.save(ctx.conn)

@@ -11,6 +11,7 @@ import asyncio
 from datetime import datetime
 from model import model_context
 from model.user import UserLevel
+from model.proset import ProItemModel
 from .interface import *
 from . import APIHandler, Attribute, Interface
 

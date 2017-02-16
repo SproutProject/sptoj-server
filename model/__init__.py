@@ -110,9 +110,15 @@ class ShadowMeta(type):
         symbols = {}
         columns = {}
         relations = {}
+        pkey_constraint = None
 
         attrs = list(model_cls.__dict__.items())
         for key, value in attrs:
+            if key == '__primarykey__':
+                pkey_constraint = sa.PrimaryKeyConstraint(
+                    *[column.name for column in value])
+                continue
+
             if (not isinstance(value, Relation) and
                 not isinstance(value, sa.Column)):
                 continue
@@ -137,12 +143,14 @@ class ShadowMeta(type):
             symbols[name] = Symbol(value, immutable, primary)
             delattr(model_cls, key)
 
-        assert pname is not None
         model_cls._pname = pname
 
         table_columns = list(columns.values())
         for key, relation in relations.items():
             table_columns.append(relation.bind(key, model_cls))
+
+        if pkey_constraint is not None:
+            table_columns.append(pkey_constraint)
 
         model_cls._columns = columns
         model_cls._relations = relations
@@ -230,7 +238,10 @@ class ShadowResult(object):
         if result is None:
             raise StopAsyncIteration
         
-        return self.typ(result)
+        if self.typ is None:
+            return result
+        else:
+            return self.typ(result)
 
     async def first(self):
 
@@ -239,6 +250,8 @@ class ShadowResult(object):
 
         if result is None:
             return None
+        elif self.typ is None:
+            return result
         else:
             return self.typ(result)
 
@@ -247,6 +260,8 @@ class ShadowResult(object):
         result = await self.results.scalar()
         if result is None:
             return None
+        elif self.typ is None:
+            return result
         else:
             return self.typ(result)
 
@@ -283,7 +298,8 @@ class BaseModel(object, metaclass=ShadowMeta):
 
         object.__setattr__(self, '_fields', fields)
 
-        self.update_reverse_relations()
+        if self._pname is not None:
+            self.update_reverse_relations()
 
     def __getattr__(self, name):
 
@@ -354,21 +370,26 @@ class BaseModel(object, metaclass=ShadowMeta):
 
             table_fields[relation.rkey.name] = target_pval
 
-        pkey = self._symbols[self._pname].obj
         expr = (sa.dialects.postgresql.insert(self._table)
             .values(**table_fields)
             .on_conflict_do_update(
-                index_elements=[pkey],
+                constraint=self._table.primary_key,
                 set_=table_fields
-            )).returning(pkey)
+            ))
 
-        pval = await (await conn.execute(expr)).scalar()
-        assert pval is not None
-        self._fields[self._pname] = pval
+        if self._pname is not None:
+            pkey = self._symbols[self._pname].obj
+            expr = expr.returning(pkey)
 
-        # Since we may change the primary value, update reversed relation
-        # queries.
-        self.update_reverse_relations()
+        result = await conn.execute(expr)
+
+        if self._pname is not None:
+            pval = await result.scalar()
+            assert pval is not None
+            self._fields[self._pname] = pval
+            # Since we may change the primary value, update reversed relation
+            # queries.
+            self.update_reverse_relations()
 
     @classmethod
     def select(cls):

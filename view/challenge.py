@@ -30,6 +30,8 @@ async def emit_challenge(challenge, code_path):
     res_path = os.path.abspath(
         os.path.join(config.PROBLEM_DIR, '{}/res'.format(problem.uid)))
 
+    print(res_path)
+
     tests = []
     for idx, test in enumerate(problem.metadata['test']):
         tests.append({
