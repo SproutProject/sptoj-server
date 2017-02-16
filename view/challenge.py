@@ -13,9 +13,10 @@ from datetime import datetime
 from model.user import UserLevel
 from model.challenge import JudgeState
 from .interface import *
-from . import APIHandler, Attribute, Interface
+from . import APIHandler, Attribute, Interface, worker_context
 
 
+@worker_context
 async def emit_challenge(challenge, code_path):
     '''Emit the challenge and update the results.
 

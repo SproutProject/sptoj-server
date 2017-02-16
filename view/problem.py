@@ -309,8 +309,8 @@ class SubmitHandler(APIHandler):
             await challenge.remove()
             return 'Error'
 
-        # Wait the challange.
-        await view.challenge.emit_challenge(challenge, code_path)
+        # Emit the challange worker.
+        view.challenge.emit_challenge(challenge, code_path)
 
         return challenge.uid
 
