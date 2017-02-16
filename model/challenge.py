@@ -2,6 +2,7 @@
 
 
 import enum
+import model.scoring
 from datetime import datetime
 from sqlalchemy import Table, Column,Integer, String, Enum, DateTime
 from sqlalchemy.sql.expression import func, text
@@ -110,6 +111,9 @@ class ChallengeModel(BaseModel):
 
                 await self.save(ctx.conn)
 
+                if self.state == JudgeState.done:
+                    await model.scoring.change_problem(self.problem.uid)
+
             return True
         except:
             return False
@@ -127,9 +131,19 @@ class ChallengeModel(BaseModel):
         '''
 
         try:
-            return (await ChallengeModel.delete()
+            old_state = self.state
+            problem_uid = self.problem.uid
+
+            result =  (await ChallengeModel.delete()
                 .where(ChallengeModel.uid == self.uid)
-                .execute(ctx.conn)).rowcount == 1
+                .execute(ctx.conn)).rowcount
+
+            if result == 0:
+                return False
+
+            if old_state == JudgeState.done:
+                await model.scoring.change_problem(problem_uid)
+
         except:
             return False
 

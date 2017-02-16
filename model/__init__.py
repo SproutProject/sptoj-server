@@ -443,6 +443,7 @@ def create_schemas(db_url):
     import model.problem
     import model.proset
     import model.challenge
+    import model.scoring
 
     engine = sa.create_engine(db_url)
     BaseModel._metadata.create_all(engine)
@@ -456,6 +457,7 @@ def drop_schemas(db_url):
     import model.problem
     import model.proset
     import model.challenge
+    import model.scoring
 
     engine = sa.create_engine(db_url)
     BaseModel._metadata.drop_all(engine)

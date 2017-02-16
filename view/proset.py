@@ -5,12 +5,13 @@ import config
 import model.proset
 import model.problem
 import model.challenge
+import model.scoring
 import view.challenge
 import os
 import asyncio
 from datetime import datetime
 from model import model_context
-from model.user import UserLevel
+from model.user import UserLevel, UserCategory
 from model.proset import ProItemModel
 from .interface import *
 from . import APIHandler, Attribute, Interface
@@ -163,12 +164,20 @@ class SetHandler(APIHandler):
         proset.name = str(data['name'])
         proset.hidden = bool(data['hidden'])
 
+        update_rate = False
+        old_category = UserCategory(proset.metadata['category'])
+
         metadata = data['metadata']
         if 'category' in metadata:
             proset.metadata['category'] = int(metadata['category'])
+            update_rate = True
 
         if not await proset.update():
             return 'Error'
+
+        if update_rate:
+            await model.scoring.change_category(old_category,
+                UserCategory(proset.metadata['category']))
 
         return 'Success'
 
@@ -195,8 +204,12 @@ class RemoveHandler(APIHandler):
         if proset is None:
             return 'Error'
 
+        old_category = UserCategory(proset.metadata['category'])
+
         if not await proset.remove():
             return 'Error'
+
+        await model.scoring.change_category(old_category, None)
 
         return 'Success'
 
@@ -256,6 +269,8 @@ class AddItemHandler(APIHandler):
         proitem = await proset.add(problem, True)
         if proitem is None:
             return 'Error'
+
+        await model.scoring.change_problem(problem.uid)
 
         return proitem.uid
 
@@ -361,6 +376,8 @@ class SetItemHandler(APIHandler):
         if not await proitem.update():
             return 'Error'
 
+        await model.scoring.change_problem(proitem.problem.uid)
+
         return 'Success'
 
 
@@ -388,7 +405,11 @@ class RemoveItemHandler(APIHandler):
         if proitem is None:
             return 'Error'
 
+        problem_uid = proitem.problem.uid
+
         if not await proitem.remove():
             return 'Error'
+
+        await model.scoring.change_problem(problem_uid)
 
         return 'Success'

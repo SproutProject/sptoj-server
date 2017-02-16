@@ -2,6 +2,7 @@
 
 
 import model.user
+import model.scoring
 from model.user import UserLevel, UserCategory
 from .interface import *
 from . import APIHandler, Attribute, Interface
@@ -113,11 +114,15 @@ class SetHandler(APIHandler):
             return 'Error'
 
         user.name = str(data['name'])
+
+        old_category = user.category
         user.category = UserCategory(data['category'])
 
         password = data.get('password')
         if not await user.update(password=password):
             return 'Error'
+
+        await model.scoring.change_category(old_category, user.category)
 
         if password is not None:
             self.clear_cookie('token')
@@ -169,7 +174,11 @@ class RemoveHandler(APIHandler):
         if user is None:
             return 'Error'
 
+        old_category = user.category
+
         if not await user.remove():
             return 'Error'
+
+        await model.scoring.change_category(old_category)
 
         return 'Success'
