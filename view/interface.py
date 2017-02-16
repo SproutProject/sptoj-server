@@ -62,7 +62,6 @@ class ProblemInterface(Interface):
     memlimit = Attribute()
     lang = Attribute()
     checker = Attribute()
-    scoring = Attribute()
     subtask = Attribute()
 
     def __init__(self, problem):
@@ -80,7 +79,6 @@ class ProblemInterface(Interface):
         self.memlimit = problem.metadata['memlimit']
         self.lang = problem.metadata['compile']
         self.checker = problem.metadata['check']
-        self.scoring = problem.metadata['score']
         self.subtask = [ test['weight'] for test in problem.metadata['test'] ]
 
 

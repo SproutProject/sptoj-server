@@ -62,11 +62,11 @@ class RateScoreModel(BaseModel):
 async def update_rate_count(category, spec_problem_uid=None,
     update_problem=False, conn=None):
     '''Update rate count.
-    
+
     Args:
         category (UserCategory): Category.
         spec_problem_uid (int, optional): Only update the specific problem ID.
-    
+
     '''
 
     base_tbl = (select([
@@ -121,7 +121,7 @@ async def update_rate_count(category, spec_problem_uid=None,
                 for index, test in enumerate(problem.test):
                     test_weight = TestWeightModel(problem_uid=problem.uid,
                         index=index, weight=test['weight'])
-                        
+
                     await test_weight.save(conn)
 
         # Remove old data.
@@ -130,7 +130,7 @@ async def update_rate_count(category, spec_problem_uid=None,
 
         if spec_problem_uid is not None:
             query = query.where(RateCountModel.problem_uid == spec_problem_uid)
-        
+
         await query.execute(conn)
 
         # Store accepted count.
@@ -153,11 +153,11 @@ async def update_rate_count(category, spec_problem_uid=None,
 
 async def update_rate_score(category, spec_problem_uid=None, conn=None):
     '''Update rate score.
-    
+
     Args:
         category (UserCategory): Category.
         spec_problem_uid (int, optional): Only update the specific problem ID.
-    
+
     '''
 
     base_tbl = (select([

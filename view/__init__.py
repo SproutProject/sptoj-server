@@ -55,6 +55,32 @@ class ResponseEncoder(json.JSONEncoder):
             return obj
 
 
+def worker_context(func):
+    '''Worker context.'''
+
+    async def task_wrapper(engine, args, kwargs):
+        '''Async task wrapper.'''
+
+        async with engine.acquire() as conn:
+            task = asyncio.Task.current_task()
+            task._conn = conn
+            task._redis = redis.StrictRedis(connection_pool=self.redis_pool)
+
+            func(*args, **kwargs)
+
+    def wrapper(*args, **kwargs):
+        '''Wrapper.'''
+
+        # Get current context.
+        task = asyncio.Task.current_task()
+        engine = task._engine
+
+        loop = asyncio.get_event_loop()
+        return loop.create_task(task_wrapper(engine, args, kwargs))
+
+    return wrapper
+
+
 def request_context(resp_json=False):
     '''Request context.'''
 
@@ -62,7 +88,7 @@ def request_context(resp_json=False):
         '''Decorator.'''
 
         async def task_wrapper(self, *args, **kwargs):
-            '''Aync task wrapper.'''
+            '''Async task wrapper.'''
 
             if resp_json:
                 self.set_header('content-type', 'application/json')
@@ -70,6 +96,7 @@ def request_context(resp_json=False):
             async with self.engine.acquire() as conn:
                 # Setup model context.
                 task = asyncio.Task.current_task()
+                task._engine = self.engine
                 task._conn = conn
                 task._redis = redis.StrictRedis(connection_pool=self.redis_pool)
 

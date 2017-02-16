@@ -1,6 +1,7 @@
 '''Problem model module'''
 
 
+import model.scoring
 from sqlalchemy import Table, Column, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from . import BaseModel, model_context
@@ -15,6 +16,30 @@ class ProblemModel(BaseModel):
     _name = Column('name', String, index=True)
     revision = Column('revision', String)
     metadata = Column('metadata', JSONB)
+
+    @model_context
+    async def remove(self, ctx):
+        '''Remove the problem.
+
+        Returns:
+            True | False
+
+        '''
+
+        try:
+            problem_uid = self.uid
+
+            result = (await ProblemModel.delete()
+                .where(ProblemModel.uid == problem_uid)
+                .execute(ctx.conn)).rowcount
+            if result == 0:
+                return False
+
+            await model.scoring.change_problem(problem_uid)
+
+            return True
+        except:
+            return False
 
 
 @model_context
@@ -32,9 +57,11 @@ async def create(uid, revision, metadata, ctx):
     '''
 
     try:
-        name = metadata['name']
+        # TODO Format the problem metadata.
 
-        #TODO Format the problem metadata.
+        metadata['name'] = str(metadata['name'])
+        metadata['score'] = int(metadata['score'])
+
         tests = []
         for idx, test in enumerate(metadata['test']):
             tests.append({
@@ -43,9 +70,12 @@ async def create(uid, revision, metadata, ctx):
             })
         metadata['test'] = tests
 
-        problem = ProblemModel(
-            uid=uid, name=name, revision=revision, metadata=metadata)
+        problem = ProblemModel(uid=uid, name=metadata['name'],
+            revision=revision, metadata=metadata)
         await problem.save(ctx.conn)
+
+        await model.scoring.change_problem(problem.uid)
+
         return problem
     except:
         return None
@@ -69,26 +99,6 @@ async def get(uid, ctx):
             .execute(ctx.conn)).first()
     except:
         return None
-
-
-@model_context
-async def remove(uid, ctx):
-    '''Remove the problem by problem ID.
-
-    Args:
-        uid (int): problem ID.
-
-    Returns:
-        True | False
-
-    '''
-
-    try:
-        return (await ProblemModel.delete()
-            .where(ProblemModel.uid == uid)
-            .execute(ctx.conn)).rowcount == 1
-    except:
-        return False
 
 
 @model_context

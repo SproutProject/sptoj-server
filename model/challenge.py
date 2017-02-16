@@ -137,13 +137,13 @@ class ChallengeModel(BaseModel):
             result =  (await ChallengeModel.delete()
                 .where(ChallengeModel.uid == self.uid)
                 .execute(ctx.conn)).rowcount
-
             if result == 0:
                 return False
 
             if old_state == JudgeState.done:
                 await model.scoring.change_problem(problem_uid)
 
+            return True
         except:
             return False
 
