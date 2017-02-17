@@ -88,6 +88,9 @@ class UpdateHandler(APIHandler):
 
         '''
 
+        # Prevent from git-remote-ext injection.
+        os.environ['GIT_ALLOW_PROTOCOL'] = 'ssh'
+
         problem_dir = os.path.join(config.PROBLEM_DIR, '{}'.format(uid))
         if not os.path.exists(problem_dir):
             os.mkdir(problem_dir, mode=0o755)
