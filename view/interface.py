@@ -52,6 +52,25 @@ class ProfileInterface(Interface):
             self.rate = rate
 
 
+class UserStatisticInterface(Interface):
+    '''User statistic view interface.'''
+
+    tried_problems = Attribute()
+
+    def __init__(self, tried_problems):
+        '''Initialize.
+
+        Args:
+            tried_problems ({
+                problem_uid: { result: int },
+                ...
+            }): Tried problems
+
+        '''
+
+        self.tried_problems = tried_problems
+
+
 class ProblemInterface(Interface):
     '''Problem view interface.'''
 

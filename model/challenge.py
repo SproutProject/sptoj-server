@@ -250,21 +250,35 @@ async def get(uid, ctx):
 
 
 @model_context
-async def get_list(start_uid=0, limit=None, ctx=None):
+async def get_list(start_uid=0, limit=None, user_uid=None, problem_uid=None,
+    result=None, ctx=None):
     '''List the challenges.
 
     Args:
         start_uid (int): Lower bound of the challenge ID.
         limit (int): The size limit.
+        user_uid (int): User ID filter.
+        problem_uid (int): Problem ID filter.
+        result (JudgeResult): Result filter.
 
     Returns:
         [ChallengeModel] | None
 
     '''
 
-    query = (ChallengeModel.select()
-        .where(ChallengeModel.uid >= start_uid)
-        .order_by(ChallengeModel.uid.desc()))
+    query = ChallengeModel.select().where(ChallengeModel.uid >= start_uid)
+
+    if user_uid is not None:
+        query = query.where(ChallengeModel.submitter.uid == user_uid)
+
+    if problem_uid is not None:
+        query = query.where(ChallengeModel.problem.uid == problem_uid)
+
+    if result is not None:
+        query = query.where(ChallengeModel.metadata['result']
+            .astext.cast(Integer) == result)
+
+    query = query.order_by(ChallengeModel.uid.desc())
 
     if limit is not None:
         query = query.limit(limit)

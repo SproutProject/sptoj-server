@@ -1,9 +1,12 @@
 '''User view module'''
 
 
+import collections
 import model.user
 import model.scoring
+import model.challenge
 from model.user import UserLevel, UserCategory
+from model.challenge import JudgeState, JudgeResult
 from .interface import *
 from . import APIHandler, Attribute, Interface
 
@@ -54,6 +57,24 @@ class LoginHandler(APIHandler):
             return 'Error'
 
         self.set_cookie('token', token, httponly=True)
+        return 'Success'
+
+
+class LogoutHandler(APIHandler):
+    '''Logout handler.'''
+
+    async def process(self, data):
+        '''Process the request.
+
+        Args:
+            data (object): {}
+
+        Returns:
+            'Success' | 'Error'
+
+        '''
+
+        self.set_cookie('token', '', httponly=True)
         return 'Success'
 
 
@@ -207,3 +228,37 @@ class RemoveHandler(APIHandler):
         await model.scoring.change_category(old_category)
 
         return 'Success'
+
+
+class StatisticHandler(APIHandler):
+    '''Get user statistic handler.'''
+
+    async def process(self, uid, data):
+        '''Process the request.
+
+        Args:
+            uid (int): User ID
+            data (object): {}
+
+        Returns:
+            UserStatisticInterface | 'Error'
+
+        '''
+
+        uid = int(uid)
+        challenges = await model.challenge.get_list(user_uid=uid)
+        if challenges is None:
+            return 'Error'
+
+        tried_problems = collections.defaultdict(lambda: {
+            'result': JudgeResult.STATUS_ERR
+        })
+        for challenge in challenges:
+            if challenge.state != JudgeState.done:
+                continue
+
+            tried_problems[challenge.problem.uid]['result'] = min(
+                tried_problems[challenge.problem.uid]['result'],
+                challenge.metadata['result'])
+
+        return UserStatisticInterface(tried_problems)
