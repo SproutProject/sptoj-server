@@ -115,7 +115,9 @@ async def get_list(start_uid=0, limit=None, ctx=None):
 
     '''
 
-    query = ProblemModel.select().where(ProblemModel.uid >= start_uid)
+    query = (ProblemModel.select()
+        .where(ProblemModel.uid >= start_uid)
+        .order_by(ProblemModel.uid))
 
     if limit is not None:
         query = query.limit(limit)

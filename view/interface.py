@@ -161,9 +161,9 @@ class ChallengeInterface(Interface):
     metadata = Attribute()
     submitter = Attribute()
     problem = Attribute()
-    subtasks = Attribute()
+    subtasks = Attribute(optional=True)
 
-    def __init__(self, challenge, subtasks):
+    def __init__(self, challenge, subtasks=None):
         '''Initialize.
 
         Args:
@@ -177,7 +177,8 @@ class ChallengeInterface(Interface):
         self.metadata = challenge.metadata
         self.submitter = UserInterface(challenge.submitter)
         self.problem = ProblemInterface(challenge.problem)
-        self.subtasks = [SubtaskInterface(subtask) for subtask in subtasks]
+        if subtasks is not None:
+            self.subtasks = [SubtaskInterface(subtask) for subtask in subtasks]
 
 
 class SubtaskInterface(Interface):

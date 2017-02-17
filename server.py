@@ -47,7 +47,7 @@ def create_application(engine, redis_pool):
         (r'/proset/(\d+)/(\d+)/get', view.proset.GetItemHandler, param),
         (r'/proset/(\d+)/(\d+)/set', view.proset.SetItemHandler, param),
         (r'/proset/(\d+)/(\d+)/remove', view.proset.RemoveItemHandler, param),
-        #(r'/challenge/list', view.challenge.ListHandler, param),
+        (r'/challenge/list', view.challenge.ListHandler, param),
         (r'/challenge/(\d+)/get', view.challenge.GetHandler, param),
     ])
 

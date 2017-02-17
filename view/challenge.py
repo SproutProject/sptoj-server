@@ -96,3 +96,32 @@ class GetHandler(APIHandler):
             return 'Error'
 
         return ChallengeInterface(challenge, subtasks)
+
+
+class ListHandler(APIHandler):
+    '''List challenge handler.'''
+
+    async def process(self, data=None):
+        '''Process the request.
+
+        Args:
+            data (object): {}
+
+        Returns:
+            [ChallengeInterface | None] | 'Error'
+
+        '''
+
+        challenges = await model.challenge.get_list()
+        if challenges is None:
+            return 'Error'
+
+        ret = []
+        for challenge in challenges:
+            problem = challenge.problem
+            if await view.proset.is_problem_hidden(self.user, problem.uid):
+                ret.append(None)
+            else:
+                ret.append(ChallengeInterface(challenge))
+
+        return ret

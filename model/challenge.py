@@ -247,3 +247,33 @@ async def get(uid, ctx):
             .execute(ctx.conn)).first()
     except:
         return None
+
+
+@model_context
+async def get_list(start_uid=0, limit=None, ctx=None):
+    '''List the challenges.
+
+    Args:
+        start_uid (int): Lower bound of the challenge ID.
+        limit (int): The size limit.
+
+    Returns:
+        [ChallengeModel] | None
+
+    '''
+
+    query = (ChallengeModel.select()
+        .where(ChallengeModel.uid >= start_uid)
+        .order_by(ChallengeModel.uid.desc()))
+
+    if limit is not None:
+        query = query.limit(limit)
+
+    try:
+        challenges = []
+        async for challenge in (await query.execute(ctx.conn)):
+            challenges.append(challenge)
+
+        return challenges
+    except:
+        return None
