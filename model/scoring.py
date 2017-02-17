@@ -256,6 +256,9 @@ async def change_category(old_category=None, new_category=None, ctx=None):
 
     '''
 
+    if old_category == new_category:
+        return
+
     if old_category == UserCategory.universe:
         old_category = None
 

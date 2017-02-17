@@ -74,7 +74,8 @@ class LogoutHandler(APIHandler):
 
         '''
 
-        self.set_cookie('token', '', httponly=True)
+        self.clear_cookie('token')
+
         return 'Success'
 
 
@@ -144,7 +145,11 @@ class SetHandler(APIHandler):
 
         Args:
             uid (int): User ID
-            data (object): { 'name' (string), 'password' (string, optional) }
+            data (object): {
+                'name' (string),
+                'password' (string, optional),
+                'category' (int, optional),
+            }
 
         Returns:
             'Success' | 'Error'
@@ -162,16 +167,17 @@ class SetHandler(APIHandler):
         user.name = str(data['name'])
 
         old_category = user.category
-        user.category = UserCategory(data['category'])
+        if self.user.level <= UserLevel.kernel and 'category' in data:
+            user.category = UserCategory(data['category'])
 
         password = data.get('password')
+        if password is not None:
+            password = str(password)
+
         if not await user.update(password=password):
             return 'Error'
 
         await model.scoring.change_category(old_category, user.category)
-
-        if password is not None:
-            self.clear_cookie('token')
 
         return 'Success'
 
