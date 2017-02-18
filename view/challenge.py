@@ -95,7 +95,36 @@ class GetHandler(APIHandler):
         if subtasks is None:
             return 'Error'
 
-        return ChallengeInterface(challenge, subtasks)
+        if self.user is not None and (
+                self.user.uid == challenge.submitter.uid or
+                self.user.level <= UserLevel.kernel):
+            loop = asyncio.get_event_loop()
+            task = loop.run_in_executor(None, GetHandler.load_code,
+                challenge.uid)
+            code = await task
+        else:
+            code = None
+
+        return ChallengeInterface(challenge, subtasks, code)
+
+    def load_code(challenge_uid):
+        '''Load the submitted code.
+
+        Args:
+            challenge_uid (int): Challenge ID.
+
+        Returns:
+            String | None
+
+        '''
+
+        code_root = os.path.join(config.CODE_DIR, '{}'.format(challenge_uid))
+        code_main = os.path.join(code_root, 'main.cpp')
+        try:
+            with open(code_main, 'r') as main_file:
+                return main_file.read()
+        except:
+            return None
 
 
 class ListHandler(APIHandler):

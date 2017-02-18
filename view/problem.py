@@ -335,6 +335,6 @@ class SubmitHandler(APIHandler):
             os.mkdir(code_root, mode=0o755)
             with open(code_main, 'w') as main_file:
                 main_file.write(code)
-            return code_main
+                return code_main
         except:
             return None

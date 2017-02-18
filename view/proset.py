@@ -165,10 +165,11 @@ class SetHandler(APIHandler):
         proset.hidden = bool(data['hidden'])
 
         update_rate = False
-        old_category = UserCategory(proset.metadata['category'])
+        old_category = None
 
         metadata = data['metadata']
-        if 'category' in metadata:
+        if 'category' in proset.metadata:
+            old_category = UserCategory(proset.metadata['category'])
             proset.metadata['category'] = int(metadata['category'])
             update_rate = True
 
@@ -204,7 +205,10 @@ class RemoveHandler(APIHandler):
         if proset is None:
             return 'Error'
 
-        old_category = UserCategory(proset.metadata['category'])
+        if 'category' in proset.metadata:
+            old_category = UserCategory(proset.metadata['category'])
+        else:
+            old_category = None
 
         if not await proset.remove():
             return 'Error'
