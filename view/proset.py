@@ -105,7 +105,9 @@ class CreateHandler(APIHandler):
 
         '''
 
-        proset = await model.proset.create(data['name'], True)
+        proset = await model.proset.create(data['name'], True, {
+            'category': UserCategory.universe
+        })
         if proset is None:
             return 'Error'
 
@@ -164,12 +166,11 @@ class SetHandler(APIHandler):
         proset.name = str(data['name'])
         proset.hidden = bool(data['hidden'])
 
+        old_category = UserCategory(proset.metadata['category'])
         update_rate = False
-        old_category = None
 
         metadata = data['metadata']
-        if 'category' in proset.metadata:
-            old_category = UserCategory(proset.metadata['category'])
+        if 'category' in metadata:
             proset.metadata['category'] = int(metadata['category'])
             update_rate = True
 

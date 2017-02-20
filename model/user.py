@@ -197,7 +197,9 @@ async def get_list(start_uid=0, limit=None, ctx=None):
 
     '''
 
-    query = UserModel.select().where(UserModel.uid >= start_uid)
+    query = (UserModel.select()
+        .where(UserModel.uid >= start_uid)
+        .order_by(UserModel.uid))
 
     if limit is not None:
         query = query.limit(limit)

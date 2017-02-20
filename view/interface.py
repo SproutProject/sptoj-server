@@ -183,7 +183,8 @@ class ChallengeInterface(Interface):
     subtasks = Attribute(optional=True)
     code = Attribute(optional=True)
 
-    def __init__(self, challenge, subtasks=None, code=None):
+    def __init__(self, challenge, subtasks=None, code=None,
+        hidden_verdict=True):
         '''Initialize.
 
         Args:
@@ -194,9 +195,17 @@ class ChallengeInterface(Interface):
         self.uid = challenge.uid
         self.state = int(challenge.state)
         self.timestamp = challenge.timestamp
-        self.metadata = challenge.metadata
         self.submitter = UserInterface(challenge.submitter)
         self.problem = ProblemInterface(challenge.problem)
+
+        self.metadata = {}
+        if 'result' in challenge.metadata:
+            self.metadata['result'] = challenge.metadata['result']
+            self.metadata['runtime'] = challenge.metadata['runtime']
+            self.metadata['memory'] = challenge.metadata['memory']
+
+        if not hidden_verdict and 'verdict' in challenge.metadata:
+            self.metadata['verdict'] = challenge.metadata['verdict']
 
         if subtasks is not None:
             self.subtasks = [SubtaskInterface(subtask) for subtask in subtasks]
@@ -224,4 +233,8 @@ class SubtaskInterface(Interface):
         self.uid = subtask.uid
         self.index = subtask.index
         self.state = int(subtask.state)
-        self.metadata = subtask.metadata
+        self.metadata = {}
+        if 'result' in subtask.metadata:
+            self.metadata['result'] = subtask.metadata['result']
+            self.metadata['runtime'] = subtask.metadata['runtime']
+            self.metadata['memory'] = subtask.metadata['memory']

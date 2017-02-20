@@ -95,9 +95,13 @@ class GetHandler(APIHandler):
         if subtasks is None:
             return 'Error'
 
+        viewall = False
         if self.user is not None and (
                 self.user.uid == challenge.submitter.uid or
                 self.user.level <= UserLevel.kernel):
+            viewall = True
+
+        if viewall:
             loop = asyncio.get_event_loop()
             task = loop.run_in_executor(None, GetHandler.load_code,
                 challenge.uid)
@@ -105,7 +109,7 @@ class GetHandler(APIHandler):
         else:
             code = None
 
-        return ChallengeInterface(challenge, subtasks, code)
+        return ChallengeInterface(challenge, subtasks, code, not viewall)
 
     def load_code(challenge_uid):
         '''Load the submitted code.

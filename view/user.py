@@ -167,8 +167,12 @@ class SetHandler(APIHandler):
         user.name = str(data['name'])
 
         old_category = user.category
-        if self.user.level <= UserLevel.kernel and 'category' in data:
-            user.category = UserCategory(data['category'])
+        if self.user.level <= UserLevel.kernel:
+            if 'level' in data:
+                user.level = UserLevel(data['level'])
+
+            if 'category' in data:
+                user.category = UserCategory(data['category'])
 
         password = data.get('password')
         if password is not None:
