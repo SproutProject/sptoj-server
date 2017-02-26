@@ -3,7 +3,7 @@
 
 import enum
 import model.scoring
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Table, Column,Integer, String, Enum, DateTime
 from sqlalchemy.sql.expression import func, text
 from sqlalchemy.dialects.postgresql import JSONB
@@ -215,7 +215,9 @@ async def create(submitter, problem, ctx):
 
         async with ctx.conn.begin():
             challenge = ChallengeModel(revision=problem.revision,
-                state=JudgeState.pending, timestamp=datetime.now(), metadata={},
+                state=JudgeState.pending,
+                timestamp=datetime.now(tz=timezone.utc),
+                metadata={},
                 submitter=submitter, problem=problem)
             await challenge.save(ctx.conn)
 
