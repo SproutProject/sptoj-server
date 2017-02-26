@@ -65,7 +65,7 @@ def start_server():
         engine = await aiopg.sa.create_engine(config.DB_URL)
         redis_pool = redis.ConnectionPool.from_url(config.REDIS_URL)
         app = create_application(engine, redis_pool)
-        app.listen(6000)
+        app.listen(6600)
 
     loop = asyncio.get_event_loop()
     loop.create_task(async_lambda())

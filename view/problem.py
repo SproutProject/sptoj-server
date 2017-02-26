@@ -134,6 +134,7 @@ class UpdateHandler(APIHandler):
 
             return binascii.hexlify(current.commit.binsha).decode('utf-8')
         except:
+            raise
             return None
         finally:
             fcntl.flock(lockfd, fcntl.LOCK_UN)
