@@ -256,9 +256,11 @@ class StatisticHandler(APIHandler):
         '''
 
         uid = int(uid)
-        challenges = await model.challenge.get_list(user_uid=uid)
-        if challenges is None:
+        partial_list = await model.challenge.get_list(user_uid=uid)
+        if partial_list is None:
             return 'Error'
+
+        challenges = partial_list['data']
 
         tried_problems = collections.defaultdict(lambda: {
             'result': JudgeResult.STATUS_ERR

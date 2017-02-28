@@ -4,6 +4,26 @@
 from . import Attribute, Interface
 
 
+class PartialListInterface(Interface):
+    '''General list view interface.'''
+
+    count = Attribute(optional=True)
+    data = Attribute()
+
+    def __init__(self, data, count=None):
+        '''Initialize.
+
+        Args:
+            data ([Interface | None]): List data.
+            count (int): Total count.
+
+        '''
+
+        self.data = data
+        if count is not None:
+            self.count = count
+
+
 class UserInterface(Interface):
     '''User view interface.'''
 
