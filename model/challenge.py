@@ -252,23 +252,23 @@ async def get(uid, ctx):
 
 
 @model_context
-async def get_list(start_uid=0, limit=None, user_uid=None, problem_uid=None,
+async def get_list(offset=0, limit=None, user_uid=None, problem_uid=None,
     result=None, ctx=None):
     '''List the challenges.
 
     Args:
-        start_uid (int): Lower bound of the challenge ID.
+        offset (int): The offset.
         limit (int): The size limit.
         user_uid (int): User ID filter.
         problem_uid (int): Problem ID filter.
         result (JudgeResult): Result filter.
 
     Returns:
-        [ChallengeModel] | None
+        { 'count' (int), 'data' ([ChallengeModel]) } | None
 
     '''
 
-    query = ChallengeModel.select().where(ChallengeModel.uid >= start_uid)
+    query = ChallengeModel.select()
 
     if user_uid is not None:
         query = query.where(ChallengeModel.submitter.uid == user_uid)
@@ -280,7 +280,7 @@ async def get_list(start_uid=0, limit=None, user_uid=None, problem_uid=None,
         query = query.where(ChallengeModel.metadata['result']
             .astext.cast(Integer) == result)
 
-    query = query.order_by(ChallengeModel.uid.desc())
+    query = query.order_by(ChallengeModel.uid).offset(offset)
 
     if limit is not None:
         query = query.limit(limit)
@@ -290,6 +290,10 @@ async def get_list(start_uid=0, limit=None, user_uid=None, problem_uid=None,
         async for challenge in (await query.execute(ctx.conn)):
             challenges.append(challenge)
 
-        return challenges
+        count = await (await select([func.count()], int)
+            .select_from(ChallengeModel)
+            .execute(ctx.conn)).scalar()
+
+        return { 'count': count, 'data': challenges }
     except:
         return None

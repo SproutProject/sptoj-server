@@ -138,16 +138,21 @@ class ListHandler(APIHandler):
         '''Process the request.
 
         Args:
-            data (object): {}
+            data (object): { offset (int) }
 
         Returns:
-            [ChallengeInterface | None] | 'Error'
+            PartialListInterface | 'Error'
 
         '''
 
-        challenges = await model.challenge.get_list()
-        if challenges is None:
+        offset = int(data['offset'])
+
+        partial_list = await model.challenge.get_list(offset=offset, limit=100)
+        if partial_list is None:
             return 'Error'
+
+        count = partial_list['count']
+        challenges = partial_list['data']
 
         ret = []
         for challenge in challenges:
@@ -157,4 +162,4 @@ class ListHandler(APIHandler):
             else:
                 ret.append(ChallengeInterface(challenge))
 
-        return ret
+        return PartialListInterface(data=ret, count=count)
