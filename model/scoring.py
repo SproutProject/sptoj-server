@@ -24,6 +24,7 @@ class TestWeightModel(BaseModel):
         ForeignKey(ProblemModel.uid, onupdate='CASCADE', ondelete='CASCADE'))
     index = Column('index', Integer, index=True)
     weight = Column('weight', Integer)
+    score = Column('score', Integer)
 
     __primarykey__ = [problem_uid, index]
 
@@ -100,28 +101,31 @@ async def update_rate_count(category, spec_problem_uid=None,
             count_tbl.expr.c.uid.label('problem_uid'),
             count_tbl.expr.c.index,
             func.count().label('count'),
-            TestWeightModel.weight
+            TestWeightModel.score
         ])
-        .select_from(count_tbl.join(TestWeightModel))
+        .select_from(count_tbl.join(TestWeightModel,
+            (count_tbl.expr.c.uid == TestWeightModel.problem_uid) &
+            (count_tbl.expr.c.index == TestWeightModel.index)))
         .group_by(count_tbl.expr.c.uid, count_tbl.expr.c.index,
-            TestWeightModel.weight))
+            TestWeightModel.score))
 
     async with conn.begin() as transcation:
+        # Update all tests, weights and scores.
         if problem_updated:
-            # Update tests and weights.
-
             await TestWeightModel.delete().execute(conn)
 
             query = select([
                     ProblemModel.uid,
-                    ProblemModel.metadata['test'].label('test')
+                    ProblemModel.metadata['test'].label('test'),
+                    ProblemModel.metadata['score'].label('score')
                 ])
 
             async for problem in await query.execute(conn):
                 for index, test in enumerate(problem.test):
+                    weight = test['weight']
                     test_weight = TestWeightModel(problem_uid=problem.uid,
-                        index=index, weight=test['weight'])
-
+                        index=index, weight=weight,
+                        score=int(problem.score * float(weight) / 100.0))
                     await test_weight.save(conn)
 
         # Remove old data.
@@ -138,12 +142,11 @@ async def update_rate_count(category, spec_problem_uid=None,
             problem_uid = result.problem_uid
             index = result.index
             count = result.count
-            weight = result.weight
+            score = result.score
 
             assert count > 0
 
-            score = int(500 * (float(weight) / 100.0) *
-                (2**(28.0 / (count + 13.0))))
+            score = score * (2**(28.0 / (count + 13.0)))
 
             rate_count = RateCountModel(category=category,
                 problem_uid=problem_uid, index=index, count=count, score=score)
@@ -189,12 +192,17 @@ async def update_rate_score(category, spec_problem_uid=None, conn=None):
 
     score_query = (select([
             base_tbl.expr,
-            RateCountModel.score,
+            TestWeightModel.score.label('max_score'),
+            RateCountModel.score
         ])
-        .select_from(base_tbl.join(RateCountModel,
-            (base_tbl.expr.c.problem_uid == RateCountModel.problem_uid) &
-            (base_tbl.expr.c.index == RateCountModel.index),
-            isouter=True)))
+        .select_from(base_tbl
+            .join(TestWeightModel,
+                (base_tbl.expr.c.problem_uid == TestWeightModel.problem_uid) &
+                (base_tbl.expr.c.index == TestWeightModel.index))
+            .join(RateCountModel,
+                (base_tbl.expr.c.problem_uid == RateCountModel.problem_uid) &
+                (base_tbl.expr.c.index == RateCountModel.index),
+                isouter=True)))
 
     async with conn.begin() as transcation:
         # Remove old data.
@@ -212,13 +220,12 @@ async def update_rate_score(category, spec_problem_uid=None, conn=None):
             index = result.index
             deadline = result.deadline
             timestamp = result.timestamp
-            score = result.score
 
+            score = result.score
             if score is None:
-                score = 2000
+                score = result.max_score * 4
 
             ratio = 1.0
-
             if deadline is not None:
                 delta = (timestamp - deadline).total_seconds()
                 if delta > 0:
@@ -325,7 +332,11 @@ async def get_problem_rate(category, problem_uid, ctx=None):
 
         ret_list = []
         async for test in await query.execute(ctx.conn):
-            ret_list.append({ 'index': test.index, 'count': 0, 'score': 2000 })
+            ret_list.append({
+                'index': test.index,
+                'count': 0,
+                'score': test.score * 4
+            })
 
         query = (RateCountModel.select()
             .where(RateCountModel.category == category)
