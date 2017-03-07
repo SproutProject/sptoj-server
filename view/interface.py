@@ -215,7 +215,7 @@ class ChallengeInterface(Interface):
         self.uid = challenge.uid
         self.state = int(challenge.state)
         self.timestamp = challenge.timestamp
-        self.submitter = UserInterface(challenge.submitter)
+        self.submitter = ProfileInterface(challenge.submitter)
         self.problem = ProblemInterface(challenge.problem)
 
         self.metadata = {}
