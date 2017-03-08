@@ -46,6 +46,35 @@ class ChallengeModel(BaseModel):
     _problem = Relation(ProblemModel, back_populates="challenges")
 
     @model_context
+    async def reset(self, ctx):
+        '''Reset the challenge.
+
+        Returns:
+            True | False
+
+        '''
+        try:
+            async with ctx.conn.begin() as transaction:
+                self._revision = self.problem.revision
+                self._state=JudgeState.pending
+                self._metadata = {}
+                await self.save(ctx.conn)
+
+                # TODO Stronger ORM delete.
+                async for subtask in (await self.subtasks.execute(ctx.conn)):
+                    await subtask.delete().execute(ctx.conn)
+
+                for idx, test in enumerate(self.problem.metadata['test']):
+                    subtask = SubtaskModel(index=idx, state=JudgeState.pending,
+                        metadata={}, challenge=self)
+                    await subtask.save(ctx.conn)
+
+                return True
+        except:
+            raise
+            return False
+
+    @model_context
     async def update_subtask(self, index, state, metadata=None, ctx=None):
         '''Update the subtask.
 
@@ -114,7 +143,7 @@ class ChallengeModel(BaseModel):
                 if self.state == JudgeState.done:
                     await model.scoring.change_problem(self.problem.uid)
 
-            return True
+                return True
         except:
             return False
 
@@ -211,17 +240,17 @@ async def create(submitter, problem, ctx):
     '''
 
     try:
-        tests = problem.metadata['test']
-
         async with ctx.conn.begin():
-            challenge = ChallengeModel(revision=problem.revision,
+            challenge = ChallengeModel(
+                revision=problem.revision,
                 state=JudgeState.pending,
                 timestamp=datetime.now(tz=timezone.utc),
                 metadata={},
-                submitter=submitter, problem=problem)
+                submitter=submitter,
+                problem=problem)
             await challenge.save(ctx.conn)
 
-            for idx, test in enumerate(tests):
+            for idx, test in enumerate(problem.metadata['test']):
                 subtask = SubtaskModel(index=idx, state=JudgeState.pending,
                     metadata={}, challenge=challenge)
                 await subtask.save(ctx.conn)
@@ -253,7 +282,7 @@ async def get(uid, ctx):
 
 @model_context
 async def get_list(offset=0, limit=None, user_uid=None, problem_uid=None,
-    result=None, ctx=None):
+    state=None, result=None, ctx=None):
     '''List the challenges.
 
     Args:
@@ -261,6 +290,7 @@ async def get_list(offset=0, limit=None, user_uid=None, problem_uid=None,
         limit (int): The size limit.
         user_uid (int): User ID filter.
         problem_uid (int): Problem ID filter.
+        state (JudgeState): State filter.
         result (JudgeResult): Result filter.
 
     Returns:
@@ -276,23 +306,24 @@ async def get_list(offset=0, limit=None, user_uid=None, problem_uid=None,
     if problem_uid is not None:
         query = query.where(ChallengeModel.problem.uid == problem_uid)
 
+    if state is not None:
+        query = query.where(ChallengeModel.state == state)
+
     if result is not None:
         query = query.where(ChallengeModel.metadata['result']
             .astext.cast(Integer) == result)
 
     query = query.order_by(ChallengeModel.uid).offset(offset)
 
-    if limit is not None:
-        query = query.limit(limit)
-
     try:
+        count = (await query.execute(ctx.conn)).rowcount
+
+        if limit is not None:
+            query = query.limit(limit)
+
         challenges = []
         async for challenge in (await query.execute(ctx.conn)):
             challenges.append(challenge)
-
-        count = await (await select([func.count()], int)
-            .select_from(ChallengeModel)
-            .execute(ctx.conn)).scalar()
 
         return { 'count': count, 'data': challenges }
     except:

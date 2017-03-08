@@ -66,7 +66,7 @@ async def update_rate_count(category, spec_problem_uid=None,
 
     Args:
         category (UserCategory): Category.
-        spec_problem_uid (int, optional): Only update the specific problem ID.
+        spec_problem_uid (int) optional: Only update the specific problem ID.
 
     '''
 
@@ -159,7 +159,7 @@ async def update_rate_score(category, spec_problem_uid=None, conn=None):
 
     Args:
         category (UserCategory): Category.
-        spec_problem_uid (int, optional): Only update the specific problem ID.
+        spec_problem_uid (int) optional: Only update the specific problem ID.
 
     '''
 
