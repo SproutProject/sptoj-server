@@ -203,7 +203,7 @@ class RejudgeHandler(APIHandler):
 
         Args:
             data (object): {
-                problem_uid (int) optional,
+                problem_uid (int) optional
             }
 
         Returns:
