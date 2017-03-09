@@ -56,7 +56,7 @@ class ChallengeModel(BaseModel):
         try:
             async with ctx.conn.begin() as transaction:
                 self._revision = self.problem.revision
-                self._state=JudgeState.pending
+                self._state = JudgeState.pending
                 self._metadata = {}
                 await self.save(ctx.conn)
 
@@ -140,10 +140,10 @@ class ChallengeModel(BaseModel):
 
                 await self.save(ctx.conn)
 
-                if self.state == JudgeState.done:
-                    await model.scoring.change_problem(self.problem.uid)
+            if self.state == JudgeState.done:
+                await model.scoring.change_problem(self.problem.uid)
 
-                return True
+            return True
         except:
             return False
 
