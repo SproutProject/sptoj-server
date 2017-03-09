@@ -140,7 +140,14 @@ class ListHandler(APIHandler):
         '''Process the request.
 
         Args:
-            data (object): { offset (int) }
+            data (object): {
+                offset (int),
+                filter ({
+                    user_id (int),
+                    problem_uid (int),
+                    result (int)
+                }) optional
+            }
 
         Returns:
             PartialListInterface | 'Error'
@@ -149,7 +156,30 @@ class ListHandler(APIHandler):
 
         offset = int(data['offset'])
 
-        partial_list = await model.challenge.get_list(offset=offset, limit=100)
+        filter_user_uid = None
+        filter_problem_uid = None
+        filter_result = None
+        flt = data.get('filter')
+        if flt is not None:
+            filter_user_uid = flt.get('user_uid')
+            if filter_user_uid is not None:
+                filter_user_uid = int(filter_user_uid)
+
+            filter_problem_uid = flt.get('problem_uid')
+            if filter_problem_uid is not None:
+                filter_problem_uid = int(filter_problem_uid)
+
+            filter_result = flt.get('result')
+            if filter_result is not None:
+                filter_result = int(filter_result)
+
+
+        partial_list = await model.challenge.get_list(
+            offset=offset,
+            user_uid=filter_user_uid,
+            problem_uid=filter_problem_uid,
+            result=filter_result,
+            limit=100)
         if partial_list is None:
             return 'Error'
 
@@ -165,3 +195,47 @@ class ListHandler(APIHandler):
                 ret.append(ChallengeInterface(challenge))
 
         return PartialListInterface(data=ret, count=count)
+
+
+class RejudgeHandler(APIHandler):
+    '''Rejudge challenge handler.'''
+
+    async def process(self, data=None):
+        '''Process the request.
+
+        Args:
+            data (object): {
+                problem_uid (int) optional
+            }
+
+        Returns:
+            'Success' | 'Error'
+
+        '''
+
+        problem_uid = None
+        if 'problem_uid' in data:
+            problem_uid = int(data['problem_uid'])
+
+        if problem_uid is None:
+            return 'Error'
+
+        partial_list = await model.challenge.get_list(problem_uid=problem_uid,
+            state=JudgeState.done)
+        if partial_list is None:
+            return 'Error'
+
+        challenges = partial_list['data']
+        for challenge in challenges:
+            # Reset the challenge.
+            await challenge.reset()
+
+            # Get code path.
+            code_root = os.path.join(config.CODE_DIR,
+                '{}'.format(challenge.uid))
+            code_path = os.path.join(code_root, 'main.cpp')
+
+            # Emit the challange worker and wait.
+            await emit_challenge(challenge, code_path)
+
+        return 'Success'
