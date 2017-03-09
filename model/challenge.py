@@ -62,7 +62,9 @@ class ChallengeModel(BaseModel):
 
                 # TODO Stronger ORM delete.
                 async for subtask in (await self.subtasks.execute(ctx.conn)):
-                    await subtask.delete().execute(ctx.conn)
+                    await (SubtaskModel.delete()
+                        .where(SubtaskModel.uid == subtask.uid)
+                        .execute(ctx.conn))
 
                 for idx, test in enumerate(self.problem.metadata['test']):
                     subtask = SubtaskModel(index=idx, state=JudgeState.pending,

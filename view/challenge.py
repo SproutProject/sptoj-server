@@ -236,6 +236,9 @@ class RejudgeHandler(APIHandler):
             code_path = os.path.join(code_root, 'main.cpp')
 
             # Emit the challange worker and wait.
-            await emit_challenge(challenge, code_path)
+            try:
+                await emit_challenge(challenge, code_path)
+            except:
+                pass
 
         return 'Success'
