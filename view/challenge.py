@@ -198,6 +198,8 @@ class ListHandler(APIHandler):
 class RejudgeHandler(APIHandler):
     '''Rejudge challenge handler.'''
 
+    level = UserLevel.kernel
+
     async def process(self, data=None):
         '''Process the request.
 
