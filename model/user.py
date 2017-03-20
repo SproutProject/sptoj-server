@@ -33,11 +33,11 @@ class UserModel(BaseModel):
     _mail = Column('mail', String, index=True, unique=True)
     _password = Column('password', String)
     name = Column('name', String)
-    category = Column('category', Enum(UserCategory))
+    _category = Column('category', Enum(UserCategory))
     metadata = Column('metadata', JSONB)
 
     @model_context
-    async def update(self, password=None, ctx=None):
+    async def update(self, password=None, category=None, ctx=None):
         '''Save the changes.
 
         Returns:
@@ -49,6 +49,9 @@ class UserModel(BaseModel):
             hashpw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(7))
             hashpw = hashpw.decode('utf-8')
             self._password = hashpw
+
+        if category is not None:
+            self._category = category
 
         try:
             await self.save(ctx.conn)
@@ -77,7 +80,7 @@ class UserModel(BaseModel):
 async def create(mail, password, name, level=UserLevel.user,
     category=UserCategory.universe, metadata={}, ctx=None):
     '''Create a user.
-    
+
     Args:
         mail (string): User mail.
         password (string): User password.
@@ -85,7 +88,7 @@ async def create(mail, password, name, level=UserLevel.user,
 
     Returns:
         UserModel | None
-    
+
     '''
 
     hashpw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(7))
@@ -123,7 +126,7 @@ async def gen_token(mail, password, ctx):
         user.password.encode('utf-8'))
     if not match:
         return None
-    
+
     token = None
     while True:
         token = secrets.token_hex(16)
@@ -157,13 +160,13 @@ async def get(uid, ctx):
 @model_context
 async def acquire(token, ctx):
     '''Get user from token.
-    
+
     Args:
         token (string): Token.
 
     Returns:
         UserModel | None
-    
+
     '''
 
     try:

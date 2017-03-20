@@ -10,7 +10,6 @@ import tornado.platform.asyncio
 import aiopg.sa
 import redis
 import aiohttp
-import git
 import shutil
 import os
 
@@ -31,7 +30,10 @@ def async_test(func):
     def wrapper(*args, **kwargs):
         '''Wrapper.'''
 
-        shutil.rmtree('./tests/tmp')
+        try:
+            shutil.rmtree('./tests/tmp')
+        except FileNotFoundError:
+            pass
         os.mkdir('./tests/tmp', mode=0o755)
         os.mkdir('./tests/tmp/code', mode=0o755)
 
@@ -57,14 +59,10 @@ def async_test(func):
 
                     http_session = None
 
-        # Reset problem git repo.
-        repo = git.Repo(config.PROBLEM_DIR)
-        repo.heads.current.commit = 'fec7c624aa0da14dedcb00cbb1dea97df3299131'
-        repo.heads.current.checkout()
-        repo.head.reset(index=True, working_tree=True)
-
         loop = asyncio.get_event_loop()
         loop.run_until_complete(loop.create_task(async_lambda()))
+
+        shutil.rmtree('./tests/tmp')
 
     return wrapper
 
