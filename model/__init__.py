@@ -169,7 +169,7 @@ class ShadowMeta(type):
 
         symbol = self._symbols[name]
         if isinstance(symbol.obj, sa.Column):
-            return symbol.obj   
+            return symbol.obj
         elif isinstance(symbol.obj, Relation):
             relation = symbol.obj
             if not relation.reverse:
@@ -237,7 +237,7 @@ class ShadowResult(object):
         result = await self.results.fetchone()
         if result is None:
             raise StopAsyncIteration
-        
+
         if self.typ is None:
             return result
         else:
@@ -289,7 +289,7 @@ class BaseModel(object, metaclass=ShadowMeta):
                     value = kwargs[key]
                 elif key != self._pname:
                     raise AttributeError
-                
+
                 fields[key] = value
 
             for key, relation in self._relations.items():
@@ -345,6 +345,7 @@ class BaseModel(object, metaclass=ShadowMeta):
                     .where(relation.rkey == pval))
 
     async def save(self, conn):
+        '''Save or update the model.'''
 
         table_fields = {}
 

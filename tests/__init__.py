@@ -69,13 +69,13 @@ def async_test(func):
 
 async def request(suffix, data):
     '''Emit an API request.
-    
+
     Args:
         data (object): API data.
 
     Returns:
         object
-    
+
     '''
 
     global http_session
