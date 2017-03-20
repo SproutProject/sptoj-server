@@ -60,6 +60,7 @@ class ShadowColumn(object):
             name = self.prefix + column.name
             if name in self.mapping:
                 return self.mapping[name]
+
         elif isinstance(column, ShadowColumn):
             return ShadowColumn(column.cls, self.mapping,
                 '{}__{}_'.format(self.prefix, name))
@@ -70,6 +71,16 @@ class ShadowColumn(object):
 class ShadowMeta(type):
 
     def build_relation_query(table, relations):
+        '''Create a selection table to query all related data.
+
+        Args:
+            table (sa.Table): DB table of the model.
+            relations: Relation keys.
+
+        Returns:
+            ([sa.Column], SELECT)
+
+        '''
 
         query = table
         label_map = {}
@@ -78,11 +89,14 @@ class ShadowMeta(type):
             target_cls = relation.target_cls
             target_query = target_cls._relquery.alias(prefix)
 
+            assert(target_cls._pname is not None)
+
             for column in target_query.columns:
                 label_map[column] = '{}_{}'.format(prefix, column.name)
 
+            pkey = target_cls._symbols[target_cls._pname].obj
             query = query.join(target_query,
-                relation.rkey == target_query.columns[target_cls._pname])
+                relation.rkey == target_query.columns[pkey.name])
 
         relation_columns = {}
         select_columns = []
@@ -141,6 +155,7 @@ class ShadowMeta(type):
                 pname = name
 
             symbols[name] = Symbol(value, immutable, primary)
+            # Remove the key from the model.
             delattr(model_cls, key)
 
         model_cls._pname = pname

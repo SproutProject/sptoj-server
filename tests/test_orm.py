@@ -28,8 +28,8 @@ class BModel(BaseModel):
     _data = Column('data', Integer)
 
 
-class TestBasic(TestCase):
-    '''Basic unittest.'''
+class TestModel(TestCase):
+    '''Model unittest.'''
 
     @tests.async_test
     @model_context
@@ -108,3 +108,58 @@ class TestBasic(TestCase):
         self.assertEqual(rb.name, 'bb')
         self.assertEqual(rb.data, 30)
         self.assertEqual(rb.parent.data, 20)
+
+
+class TestCommand(TestCase):
+    '''Command unittest.'''
+
+    @tests.async_test
+    @model_context
+    async def test_select(self, ctx):
+        '''Test basic select.'''
+
+        a = AModel(data=20)
+        b = BModel(name='b', parent=a, data=20)
+
+        await a.save(ctx.conn)
+        await b.save(ctx.conn)
+
+        query = select([BModel.name, BModel.data]).select_from(BModel)
+        res = await (await query.execute(ctx.conn)).first()
+        self.assertEqual(res, ('b', 20))
+
+    @tests.async_test
+    @model_context
+    async def test_join_select(self, ctx):
+        '''Test select on join.'''
+
+        a = AModel(data=20)
+        b = BModel(name='b', parent=a, data=20)
+
+        await a.save(ctx.conn)
+        await b.save(ctx.conn)
+
+        query = (select([BModel.name, BModel.data])
+            .select_from(BModel.join(AModel))
+            .where(AModel.data == 20))
+        res = await (await query.execute(ctx.conn)).first()
+        self.assertEqual(res, ('b', 20))
+
+    @tests.async_test
+    @model_context
+    async def test_select_foreign(self, ctx):
+        '''Test select on foreign key.'''
+
+        a = AModel(data=20)
+        b = BModel(name='b', parent=a, data=20)
+
+        await a.save(ctx.conn)
+        await b.save(ctx.conn)
+
+        print(BModel.parent.uid)
+
+        query = (select([BModel.name, BModel.data])
+            .select_from(BModel)
+            .where(BModel.parent.uid == 0))
+        res = await (await query.execute(ctx.conn)).first()
+        self.assertEqual(res, ('b', 20))
