@@ -28,6 +28,18 @@ class BModel(BaseModel):
     _data = Column('data', Integer)
 
 
+class CModel(BaseModel):
+    '''Test C Model.'''
+
+    __tablename__ = 'C'
+
+    uid = Column('xid', Integer, primary_key=True)
+    name = Column('name', String)
+    aa = Relation(AModel)
+    ba = Relation(BModel, back_populates='ca')
+    bb = Relation(BModel, back_populates='cb')
+
+
 class TestModel(TestCase):
     '''Model unittest.'''
 
@@ -72,14 +84,15 @@ class TestModel(TestCase):
         self.assertEqual(rb.data, 30)
         self.assertEqual(rb.parent.data, 10)
 
-        results = (await BModel.select()
+        rowcount = (await BModel.select()
             .where(BModel.parent.data == 10)
-            .execute(ctx.conn))
-        rows = []
-        async for rb in results:
-            rows.append(rb)
+            .execute(ctx.conn)).rowcount
+        self.assertEqual(rowcount, 2)
 
-        self.assertEqual(len(rows), 2)
+        rowcount = (await BModel.select()
+            .where(BModel.parent.uid == 1)
+            .execute(ctx.conn)).rowcount
+        self.assertEqual(rowcount, 2)
 
     @tests.async_test
     @model_context
@@ -108,6 +121,36 @@ class TestModel(TestCase):
         self.assertEqual(rb.name, 'bb')
         self.assertEqual(rb.data, 30)
         self.assertEqual(rb.parent.data, 20)
+
+    @tests.async_test
+    @model_context
+    async def test_relation(self, ctx):
+        '''Test relation.'''
+
+        a = AModel(data=10)
+        b1 = BModel(name='b1', parent=a, data=20)
+        b2 = BModel(name='b2', parent=a, data=30)
+        c = CModel(name='c', aa=a, ba=b1, bb=b2)
+
+        await a.save(ctx.conn)
+        await b1.save(ctx.conn)
+        await b2.save(ctx.conn)
+        await c.save(ctx.conn)
+
+        rc = await (await CModel.select()
+            .where(CModel.ba.data == 20)
+            .where(CModel.bb.name == 'b2')
+            .where(CModel.bb.parent.uid == 1)
+            .execute(ctx.conn)).first()
+        self.assertEqual(rc.name, 'c')
+        self.assertEqual(rc.aa.data, 10)
+        self.assertEqual(rc.ba.uid, 1)
+        self.assertEqual(rc.bb.uid, 2)
+
+        rowcount = (await CModel.select()
+            .where(CModel.ba.parent.uid == 2)
+            .execute(ctx.conn)).rowcount
+        self.assertEqual(rowcount, 0)
 
 
 class TestCommand(TestCase):
@@ -156,10 +199,8 @@ class TestCommand(TestCase):
         await a.save(ctx.conn)
         await b.save(ctx.conn)
 
-        print(BModel.parent.uid)
-
         query = (select([BModel.name, BModel.data])
             .select_from(BModel)
-            .where(BModel.parent.uid == 0))
+            .where(BModel.parent.uid == 1))
         res = await (await query.execute(ctx.conn)).first()
         self.assertEqual(res, ('b', 20))

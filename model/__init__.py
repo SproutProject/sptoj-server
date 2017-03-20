@@ -84,6 +84,7 @@ class ShadowMeta(type):
 
         query = table
         label_map = {}
+        rkey_map = {}
         for key, relation in relations.items():
             prefix = '__' + key
             target_cls = relation.target_cls
@@ -95,8 +96,9 @@ class ShadowMeta(type):
                 label_map[column] = '{}_{}'.format(prefix, column.name)
 
             pkey = target_cls._symbols[target_cls._pname].obj
-            query = query.join(target_query,
-                relation.rkey == target_query.columns[pkey.name])
+            pcolumn = target_query.columns[pkey.name]
+            rkey_map[pcolumn] = relation.rkey
+            query = query.join(target_query, relation.rkey == pcolumn)
 
         relation_columns = {}
         select_columns = []
@@ -106,7 +108,10 @@ class ShadowMeta(type):
 
             if column in label_map:
                 labeled_column = column.label(label_map[column])
-                relation_columns[labeled_column.name] = column
+                if column in rkey_map:
+                    relation_columns[labeled_column.name] = rkey_map[column]
+                else:
+                    relation_columns[labeled_column.name] = column
                 column = labeled_column
 
             select_columns.append(column)
