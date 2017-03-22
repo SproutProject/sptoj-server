@@ -152,6 +152,22 @@ class TestModel(TestCase):
             .execute(ctx.conn)).rowcount
         self.assertEqual(rowcount, 0)
 
+    @tests.async_test
+    @model_context
+    async def test_delete(self, ctx):
+        '''Test delete.'''
+
+        a = AModel(data=10)
+        b = BModel(name='b', parent=a, data=20)
+
+        await a.save(ctx.conn)
+        await b.save(ctx.conn)
+
+        rowcount = (await BModel.delete()
+            .where(BModel.parent.data == 10)
+            .execute(ctx.conn)).rowcount
+        self.assertEqual(rowcount, 1)
+
 
 class TestCommand(TestCase):
     '''Command unittest.'''

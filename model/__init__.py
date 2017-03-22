@@ -90,7 +90,7 @@ class ShadowMeta(type):
             target_cls = relation.target_cls
             target_query = target_cls._relquery.alias(prefix)
 
-            assert(target_cls._pname is not None)
+            assert target_cls._pname is not None
 
             for column in target_query.columns:
                 label_map[column] = '{}_{}'.format(prefix, column.name)
@@ -200,15 +200,45 @@ class ShadowMeta(type):
 
 
 class ShadowExpr(object):
+    '''Shadow Expression.'''
 
-    def __init__(self, expr, typ=None):
+    def __init__(self, expr, typ=None, delete_table=None):
+        '''Initialize.
 
-        self.expr = expr
+       Args:
+           expr (object): SQL expression.
+           typ (type): Result type.
+           delete_table (type): Not None if it's a delete operation.
+
+        '''
+
         self.typ = typ
+        self._expr = expr
+        self._delete_table = delete_table
 
     def __getattr__(self, name):
+        '''Proxy the attribute.
 
-        func = getattr(self.expr, name)
+        Args:
+            name (string): Attribute name.
+
+        Return:
+            Object
+
+        '''
+
+        if name == 'expr':
+            if self._delete_table is None:
+                return self._expr
+            else:
+                columns = self._delete_table.primary_key.columns
+                assert len(columns) == 1
+                pkey = columns.values()[0]
+
+                cte = self._expr.with_only_columns([pkey]).cte('_cte_')
+                return self._delete_table.delete().where(pkey.in_(cte))
+
+        func = getattr(self._expr, name)
 
         def wrapper(*args, **kwargs):
             '''Wrapper.'''
@@ -221,14 +251,15 @@ class ShadowExpr(object):
             for key, value in kwargs.items():
                 proxy_kwargs[key] = self.proxy_value(value)
 
-            return ShadowExpr(func(*proxy_args, **proxy_kwargs), typ=self.typ)
+            return ShadowExpr(func(*proxy_args, **proxy_kwargs), typ=self.typ,
+                delete_table=self._delete_table)
 
         return wrapper
 
     def proxy_value(self, value):
 
         if isinstance(value, ShadowExpr):
-            return value.expr
+            return value._expr
         elif isinstance(value, ShadowMeta):
             return value._table
 
@@ -236,6 +267,7 @@ class ShadowExpr(object):
 
     async def execute(self, conn):
 
+        # Execute the processed expression here.
         results = await conn.execute(self.expr)
         return ShadowResult(results, self.typ)
 
@@ -420,7 +452,7 @@ class BaseModel(object, metaclass=ShadowMeta):
     @classmethod
     def delete(cls):
 
-        return ShadowExpr(cls._table.delete())
+        return ShadowExpr(cls._relquery, typ=cls, delete_table=cls._table)
 
     @classmethod
     def join(cls, other, *args, **kwargs):
