@@ -397,7 +397,12 @@ class BaseModel(object, metaclass=ShadowMeta):
                     .where(relation.rkey == pval))
 
     async def save(self, conn):
-        '''Save or update the model.'''
+        '''Save or update the model.
+
+        Args:
+            conn (object): Connection.
+
+        '''
 
         table_fields = {}
 
@@ -446,21 +451,59 @@ class BaseModel(object, metaclass=ShadowMeta):
 
     @classmethod
     def select(cls):
+        '''Select model.
+
+        Args:
+            cls (type): Model class.
+
+        Returns:
+            ShadowExpr
+
+        '''
 
         return ShadowExpr(cls._relquery, typ=cls)
 
     @classmethod
     def delete(cls):
+        '''Delete model.
 
-        return ShadowExpr(cls._relquery, typ=cls, delete_table=cls._table)
+        Args:
+            cls (type): Model class.
+
+        Returns:
+            ShadowExpr
+
+        '''
+
+        return ShadowExpr(cls._relquery, delete_table=cls._table)
 
     @classmethod
     def join(cls, other, *args, **kwargs):
+        '''Join another model.
+
+        Args:
+            cls (type): Self model class.
+            other (type): Other model class.
+
+        Returns:
+            ShadowExpr
+
+        '''
 
         return ShadowExpr(cls._table.join(other._table, *args, **kwargs))
 
 
 def select(fields, cls=None):
+    '''Create select expression.
+
+    Args:
+        fields ([object]): Selected fields.
+        cls (type, optional): Result type.
+
+    Returns:
+        ShadowExpr
+
+    '''
 
     query_fields = []
     for field in fields:

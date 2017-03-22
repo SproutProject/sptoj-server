@@ -13,7 +13,7 @@ class AModel(BaseModel):
 
     __tablename__ = 'A'
 
-    uid = Column('uid', Integer, primary_key=True)
+    uid = Column('zid', Integer, primary_key=True)
     data = Column('data', Integer)
 
 
@@ -22,7 +22,7 @@ class BModel(BaseModel):
 
     __tablename__ = 'B'
 
-    uid = Column('uid', Integer, primary_key=True)
+    uid = Column('yid', Integer, primary_key=True)
     name = Column('name', String)
     parent = Relation(AModel, back_populates='children')
     _data = Column('data', Integer)
@@ -34,7 +34,7 @@ class CModel(BaseModel):
     __tablename__ = 'C'
 
     uid = Column('xid', Integer, primary_key=True)
-    name = Column('name', String)
+    name = Column('xname', String)
     aa = Relation(AModel)
     ba = Relation(BModel, back_populates='ca')
     bb = Relation(BModel, back_populates='cb')
@@ -131,11 +131,13 @@ class TestModel(TestCase):
         b1 = BModel(name='b1', parent=a, data=20)
         b2 = BModel(name='b2', parent=a, data=30)
         c = CModel(name='c', aa=a, ba=b1, bb=b2)
+        c1 = CModel(name='c', aa=a, ba=b1, bb=b1)
 
         await a.save(ctx.conn)
         await b1.save(ctx.conn)
         await b2.save(ctx.conn)
         await c.save(ctx.conn)
+        await c1.save(ctx.conn)
 
         rc = await (await CModel.select()
             .where(CModel.ba.data == 20)
@@ -152,20 +154,35 @@ class TestModel(TestCase):
             .execute(ctx.conn)).rowcount
         self.assertEqual(rowcount, 0)
 
+        rowcount = (await b1.ca.execute(ctx.conn)).rowcount
+        self.assertEqual(rowcount, 2)
+
+        rc = await (await b2.cb.execute(ctx.conn)).first()
+        self.assertEqual(rc.uid, 1)
+
     @tests.async_test
     @model_context
     async def test_delete(self, ctx):
         '''Test delete.'''
 
-        a = AModel(data=10)
-        b = BModel(name='b', parent=a, data=20)
+        a1 = AModel(data=10)
+        a2 = AModel(data=20)
+        b1 = BModel(name='b', parent=a1, data=20)
+        b2 = BModel(name='b', parent=a2, data=20)
+        b3 = BModel(name='b', parent=a2, data=20)
 
-        await a.save(ctx.conn)
-        await b.save(ctx.conn)
+        await a1.save(ctx.conn)
+        await a2.save(ctx.conn)
+        await b1.save(ctx.conn)
+        await b2.save(ctx.conn)
+        await b3.save(ctx.conn)
 
         rowcount = (await BModel.delete()
-            .where(BModel.parent.data == 10)
+            .where(BModel.parent.data == 20)
             .execute(ctx.conn)).rowcount
+        self.assertEqual(rowcount, 2)
+
+        rowcount = (await BModel.delete().execute(ctx.conn)).rowcount
         self.assertEqual(rowcount, 1)
 
 
