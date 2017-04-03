@@ -267,19 +267,21 @@ class RankerInterface(Interface):
     rate = Attribute()
     results = Attribute()
 
-    def __init__(self, profile, rate, results):
+    def __init__(self, data):
         '''Initialize.
 
         Args:
-            user (ProfileModel): User profile.
-            rate (int): Rate.
-            results (object): Results.
+            data (object): {
+                'user' (UserModel),
+                'rate' (int),
+                'results' ([(int, int)]),
+            }
 
         '''
 
-        self.profile = profile
-        self.rate = rate
-        self.results = results
+        self.profile = ProfileInterface(data['user'])
+        self.rate = data['rate']
+        self.results = data['results']
 
 
 class RankInterface(Interface):
