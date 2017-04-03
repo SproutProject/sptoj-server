@@ -52,6 +52,8 @@ class ListHandler(APIHandler):
 
         result_map = await model.challenge.stat_result(rankers.keys(),
             problem_ids)
+        if result_map is None:
+            return 'Error'
 
         for key, result in result_map.items():
             user_uid, problem_uid = key
