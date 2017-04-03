@@ -350,8 +350,8 @@ async def get_problem_rate(category, problem_uid, ctx=None):
 
 
 @model_context
-async def get_user_rate(user, ctx=None):
-    '''Get user rate.
+async def get_user_score(user, spec_problem_uid=None, ctx=None):
+    '''Get user score.
 
     Args:
         user (UserModel): User.
@@ -361,13 +361,45 @@ async def get_user_rate(user, ctx=None):
 
     '''
 
-    if user.category == UserCategory.universe:
-        return None
+    if user.category == UserCategory.algo:
+        # Algo uses rate scoring.
+        query = (select([func.sum(RateScoreModel.score)], int)
+            .where(RateScoreModel.user_uid == user.uid))
 
-    score = await (await select([func.sum(RateScoreModel.score)], int)
-        .where(RateScoreModel.user_uid == user.uid)
-        .execute(ctx.conn)).scalar()
-    if score is None:
-        score = 0
+        if spec_problem_uid is not None:
+            query = query.where(RateScoreModel.problem_uid == spec_problem_uid)
 
-    return score
+        score = await (await query.execute(ctx.conn)).scalar()
+        if score is None:
+            score = 0
+
+        return score
+    else:
+        # Default statistic scoring.
+
+        score_tbl = (select([TestWeightModel.score], int)
+            .select_from(ChallengeModel
+                .join(UserModel)
+                .join(ProblemModel)
+                .join(SubtaskModel)
+                .join(TestWeightModel,
+                    (ProblemModel.uid == TestWeightModel.problem_uid) &
+                    (SubtaskModel.index == TestWeightModel.index)))
+            .where(UserModel.uid == user.uid)
+            .where(SubtaskModel.metadata['result'].astext.cast(Integer) ==
+                int(JudgeResult.STATUS_AC)))
+
+        if spec_problem_uid is not None:
+            score_tbl = score_tbl.where(
+                ProblemModel.problem_uid == spec_problem_uid)
+
+        score_tbl = score_tbl.distinct(TestWeightModel.problem_uid,
+            TestWeightModel.index, TestWeightModel.score).alias()
+
+        score = await (await select([func.sum(score_tbl.expr.c.score)], int)
+            .select_from(score_tbl)
+            .execute(ctx.conn)).scalar()
+        if score is None:
+            score = 0
+
+        return score

@@ -130,7 +130,7 @@ class ProfileHandler(APIHandler):
         if user is None:
             return 'Error'
 
-        rate = await model.scoring.get_user_rate(user)
+        rate = await model.scoring.get_user_score(user)
 
         return ProfileInterface(user, rate)
 
