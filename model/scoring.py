@@ -11,7 +11,7 @@ from model.problem import ProblemModel
 from model.proset import ProSetModel, ProItemModel
 from model.challenge import ChallengeModel, SubtaskModel
 from model.challenge import JudgeState, JudgeResult
-from sqlalchemy import ForeignKey, Column, Integer, Enum, func
+from sqlalchemy import ForeignKey, Column, Integer, Enum, func, distinct
 from . import BaseModel, model_context, select
 
 
@@ -326,27 +326,62 @@ async def get_problem_rate(category, problem_uid, ctx=None):
         if result == 0:
             return None
 
-        query = (TestWeightModel.select()
-            .where(TestWeightModel.problem_uid == problem_uid)
-            .order_by(TestWeightModel.index))
+        if category == UserCategory.algo:
+            # Algo uses rate scoring.
 
-        ret_list = []
-        async for test in await query.execute(ctx.conn):
-            ret_list.append({
-                'index': test.index,
-                'count': 0,
-                'score': test.score * 4
-            })
+            query = (TestWeightModel.select()
+                .where(TestWeightModel.problem_uid == problem_uid)
+                .order_by(TestWeightModel.index))
 
-        query = (RateCountModel.select()
-            .where(RateCountModel.category == category)
-            .where(RateCountModel.problem_uid == problem_uid))
+            results = {}
+            async for test in await query.execute(ctx.conn):
+                results[test.index] = {
+                    'index': test.index,
+                    'count': 0,
+                    'score': test.score * 4
+                }
 
-        async for rate_count in await query.execute(ctx.conn):
-            ret_list[rate_count.index]['count'] = rate_count.count
-            ret_list[rate_count.index]['score'] = rate_count.score
+            query = (RateCountModel.select()
+                .where(RateCountModel.category == category)
+                .where(RateCountModel.problem_uid == problem_uid))
 
-        return ret_list
+            async for rate_count in await query.execute(ctx.conn):
+                results[rate_count.index]['count'] = rate_count.count
+                results[rate_count.index]['score'] = rate_count.score
+
+            return sorted(results.values(), key=lambda x: x['index'])
+        else:
+            # Default statistic scoring.
+
+            query = (TestWeightModel.select()
+                .where(TestWeightModel.problem_uid == problem_uid))
+
+            results = {}
+            async for test in await query.execute(ctx.conn):
+                results[test.index] = {
+                    'index': test.index,
+                    'count': 0,
+                    'score': test.score
+                }
+
+            query = (select([
+                    SubtaskModel.index,
+                    func.count(distinct(UserModel.uid)).label('count')
+                ])
+                .select_from(ProblemModel
+                    .join(ChallengeModel)
+                    .join(UserModel)
+                    .join(SubtaskModel))
+                .where(ProblemModel.uid == problem_uid)
+                .where(UserModel.category == category)
+                .where(SubtaskModel.metadata['result'].astext.cast(Integer) ==
+                    int(JudgeResult.STATUS_AC))
+                .group_by(SubtaskModel.index))
+
+            async for stat_count in await query.execute(ctx.conn):
+                results[stat_count.index]['count'] = stat_count.count
+
+            return sorted(results.values(), key=lambda x: x['index'])
 
 
 @model_context
