@@ -385,7 +385,8 @@ async def get_problem_rate(category, problem_uid, ctx=None):
 
 
 @model_context
-async def get_user_score(user, spec_problem_uid=None, ctx=None):
+async def get_user_score(user, spec_problem_uid=None, spec_proset_uid=None,
+    ctx=None):
     '''Get user score.
 
     Args:
@@ -412,14 +413,34 @@ async def get_user_score(user, spec_problem_uid=None, ctx=None):
     else:
         # Default statistic scoring.
 
-        score_tbl = (select([TestWeightModel.score], int)
+        # TODO optimize the queries.
+
+        base_tbl = (select([
+                TestWeightModel.problem_uid,
+                TestWeightModel.index,
+                TestWeightModel.score
+            ])
+            .select_from(ProItemModel
+                .join(ProblemModel)
+                .join(ProSetModel)
+                .join(TestWeightModel,
+                    ProblemModel.uid == TestWeightModel.problem_uid))
+            .where(ProSetModel.metadata['category'].astext.cast(Integer) ==
+                int(user.category))
+            .distinct(TestWeightModel.problem_uid, TestWeightModel.index,
+                TestWeightModel.score)).alias()
+
+        if spec_proset_uid is not None:
+            base_tbl = base_tbl.where(ProSetModel.uid == spec_proset_uid)
+
+        score_tbl = (select([base_tbl.expr.c.score], int)
             .select_from(ChallengeModel
                 .join(UserModel)
                 .join(ProblemModel)
                 .join(SubtaskModel)
-                .join(TestWeightModel,
-                    (ProblemModel.uid == TestWeightModel.problem_uid) &
-                    (SubtaskModel.index == TestWeightModel.index)))
+                .join(base_tbl,
+                    (ProblemModel.uid == base_tbl.expr.c.problem_uid) &
+                    (SubtaskModel.index == base_tbl.expr.c.index)))
             .where(UserModel.uid == user.uid)
             .where(SubtaskModel.metadata['result'].astext.cast(Integer) ==
                 int(JudgeResult.STATUS_AC)))
@@ -428,8 +449,8 @@ async def get_user_score(user, spec_problem_uid=None, ctx=None):
             score_tbl = score_tbl.where(
                 ProblemModel.problem_uid == spec_problem_uid)
 
-        score_tbl = score_tbl.distinct(TestWeightModel.problem_uid,
-            TestWeightModel.index, TestWeightModel.score).alias()
+        score_tbl = score_tbl.distinct(base_tbl.expr.c.problem_uid,
+            base_tbl.expr.c.index, base_tbl.expr.c.score).alias()
 
         score = await (await select([func.sum(score_tbl.expr.c.score)], int)
             .select_from(score_tbl)

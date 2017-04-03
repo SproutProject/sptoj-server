@@ -6,6 +6,7 @@ import view.user
 import view.problem
 import view.proset
 import view.challenge
+import view.rank
 import asyncio
 import tornado.web
 import tornado.options
@@ -52,6 +53,7 @@ def create_application(engine, redis_pool):
         (r'/challenge/list', view.challenge.ListHandler, param),
         (r'/challenge/rejudge', view.challenge.RejudgeHandler, param),
         (r'/challenge/(\d+)/get', view.challenge.GetHandler, param),
+        (r'/rank/(\d+)/list', view.rank.ListHandler, param),
     ])
 
 

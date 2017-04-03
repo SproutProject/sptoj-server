@@ -258,3 +258,17 @@ class SubtaskInterface(Interface):
             self.metadata['result'] = subtask.metadata['result']
             self.metadata['runtime'] = subtask.metadata['runtime']
             self.metadata['memory'] = subtask.metadata['memory']
+
+
+class RankItemInterface(Interface):
+    '''Rank item interface.'''
+
+    user = Attribute()
+    rate = Attribute()
+
+
+class RankInterface(Interface):
+    '''Rank view interface.'''
+
+    problems = Attribute()
+    users = Attribute()
