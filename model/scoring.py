@@ -428,10 +428,12 @@ async def get_user_score(user, spec_problem_uid=None, spec_proset_uid=None,
             .where(ProSetModel.metadata['category'].astext.cast(Integer) ==
                 int(user.category))
             .distinct(TestWeightModel.problem_uid, TestWeightModel.index,
-                TestWeightModel.score)).alias()
+                TestWeightModel.score))
 
         if spec_proset_uid is not None:
             base_tbl = base_tbl.where(ProSetModel.uid == spec_proset_uid)
+
+        base_tbl = base_tbl.alias()
 
         score_tbl = (select([base_tbl.expr.c.score], int)
             .select_from(ChallengeModel

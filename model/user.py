@@ -77,7 +77,7 @@ class UserModel(BaseModel):
 async def create(mail, password, name, level=UserLevel.user,
     category=UserCategory.universe, metadata={}, ctx=None):
     '''Create a user.
-    
+
     Args:
         mail (string): User mail.
         password (string): User password.
@@ -85,7 +85,7 @@ async def create(mail, password, name, level=UserLevel.user,
 
     Returns:
         UserModel | None
-    
+
     '''
 
     hashpw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(7))
@@ -123,7 +123,7 @@ async def gen_token(mail, password, ctx):
         user.password.encode('utf-8'))
     if not match:
         return None
-    
+
     token = None
     while True:
         token = secrets.token_hex(16)
@@ -157,13 +157,13 @@ async def get(uid, ctx):
 @model_context
 async def acquire(token, ctx):
     '''Get user from token.
-    
+
     Args:
         token (string): Token.
 
     Returns:
         UserModel | None
-    
+
     '''
 
     try:
@@ -185,7 +185,7 @@ async def acquire(token, ctx):
 
 
 @model_context
-async def get_list(start_uid=0, limit=None, ctx=None):
+async def get_list(start_uid=0, limit=None, category=None, ctx=None):
     '''List the users.
 
     Args:
@@ -197,9 +197,12 @@ async def get_list(start_uid=0, limit=None, ctx=None):
 
     '''
 
-    query = (UserModel.select()
-        .where(UserModel.uid >= start_uid)
-        .order_by(UserModel.uid))
+    query = UserModel.select().where(UserModel.uid >= start_uid)
+
+    if category is not None:
+        query = query.where(UserModel.category == category)
+
+    query = query.order_by(UserModel.uid)
 
     if limit is not None:
         query = query.limit(limit)
