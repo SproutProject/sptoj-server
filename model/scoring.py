@@ -11,7 +11,7 @@ from model.problem import ProblemModel
 from model.proset import ProSetModel, ProItemModel
 from model.challenge import ChallengeModel, SubtaskModel
 from model.challenge import JudgeState, JudgeResult
-from sqlalchemy import ForeignKey, Column, Integer, Enum, func
+from sqlalchemy import ForeignKey, Column, Integer, Enum, func, distinct
 from . import BaseModel, model_context, select
 
 
@@ -326,32 +326,68 @@ async def get_problem_rate(category, problem_uid, ctx=None):
         if result == 0:
             return None
 
-        query = (TestWeightModel.select()
-            .where(TestWeightModel.problem_uid == problem_uid)
-            .order_by(TestWeightModel.index))
+        if category == UserCategory.algo:
+            # Algo uses rate scoring.
 
-        ret_list = []
-        async for test in await query.execute(ctx.conn):
-            ret_list.append({
-                'index': test.index,
-                'count': 0,
-                'score': test.score * 4
-            })
+            query = (TestWeightModel.select()
+                .where(TestWeightModel.problem_uid == problem_uid)
+                .order_by(TestWeightModel.index))
 
-        query = (RateCountModel.select()
-            .where(RateCountModel.category == category)
-            .where(RateCountModel.problem_uid == problem_uid))
+            results = {}
+            async for test in await query.execute(ctx.conn):
+                results[test.index] = {
+                    'index': test.index,
+                    'count': 0,
+                    'score': test.score * 4
+                }
 
-        async for rate_count in await query.execute(ctx.conn):
-            ret_list[rate_count.index]['count'] = rate_count.count
-            ret_list[rate_count.index]['score'] = rate_count.score
+            query = (RateCountModel.select()
+                .where(RateCountModel.category == category)
+                .where(RateCountModel.problem_uid == problem_uid))
 
-        return ret_list
+            async for rate_count in await query.execute(ctx.conn):
+                results[rate_count.index]['count'] = rate_count.count
+                results[rate_count.index]['score'] = rate_count.score
+
+            return sorted(results.values(), key=lambda x: x['index'])
+        else:
+            # Default statistic scoring.
+
+            query = (TestWeightModel.select()
+                .where(TestWeightModel.problem_uid == problem_uid))
+
+            results = {}
+            async for test in await query.execute(ctx.conn):
+                results[test.index] = {
+                    'index': test.index,
+                    'count': 0,
+                    'score': test.score
+                }
+
+            query = (select([
+                    SubtaskModel.index,
+                    func.count(distinct(UserModel.uid)).label('count')
+                ])
+                .select_from(ProblemModel
+                    .join(ChallengeModel)
+                    .join(UserModel)
+                    .join(SubtaskModel))
+                .where(ProblemModel.uid == problem_uid)
+                .where(UserModel.category == category)
+                .where(SubtaskModel.metadata['result'].astext.cast(Integer) ==
+                    int(JudgeResult.STATUS_AC))
+                .group_by(SubtaskModel.index))
+
+            async for stat_count in await query.execute(ctx.conn):
+                results[stat_count.index]['count'] = stat_count.count
+
+            return sorted(results.values(), key=lambda x: x['index'])
 
 
 @model_context
-async def get_user_rate(user, ctx=None):
-    '''Get user rate.
+async def get_user_score(user, spec_problem_uid=None, spec_proset_uid=None,
+    ctx=None):
+    '''Get user score.
 
     Args:
         user (UserModel): User.
@@ -361,13 +397,67 @@ async def get_user_rate(user, ctx=None):
 
     '''
 
-    if user.category == UserCategory.universe:
-        return None
+    if user.category == UserCategory.algo:
+        # Algo uses rate scoring.
+        query = (select([func.sum(RateScoreModel.score)], int)
+            .where(RateScoreModel.user_uid == user.uid))
 
-    score = await (await select([func.sum(RateScoreModel.score)], int)
-        .where(RateScoreModel.user_uid == user.uid)
-        .execute(ctx.conn)).scalar()
-    if score is None:
-        score = 0
+        if spec_problem_uid is not None:
+            query = query.where(RateScoreModel.problem_uid == spec_problem_uid)
 
-    return score
+        score = await (await query.execute(ctx.conn)).scalar()
+        if score is None:
+            score = 0
+
+        return score
+    else:
+        # Default statistic scoring.
+
+        # TODO optimize the queries.
+
+        base_tbl = (select([
+                TestWeightModel.problem_uid,
+                TestWeightModel.index,
+                TestWeightModel.score
+            ])
+            .select_from(ProItemModel
+                .join(ProblemModel)
+                .join(ProSetModel)
+                .join(TestWeightModel,
+                    ProblemModel.uid == TestWeightModel.problem_uid))
+            .where(ProSetModel.metadata['category'].astext.cast(Integer) ==
+                int(user.category))
+            .distinct(TestWeightModel.problem_uid, TestWeightModel.index,
+                TestWeightModel.score))
+
+        if spec_proset_uid is not None:
+            base_tbl = base_tbl.where(ProSetModel.uid == spec_proset_uid)
+
+        base_tbl = base_tbl.alias()
+
+        score_tbl = (select([base_tbl.expr.c.score], int)
+            .select_from(ChallengeModel
+                .join(UserModel)
+                .join(ProblemModel)
+                .join(SubtaskModel)
+                .join(base_tbl,
+                    (ProblemModel.uid == base_tbl.expr.c.problem_uid) &
+                    (SubtaskModel.index == base_tbl.expr.c.index)))
+            .where(UserModel.uid == user.uid)
+            .where(SubtaskModel.metadata['result'].astext.cast(Integer) ==
+                int(JudgeResult.STATUS_AC)))
+
+        if spec_problem_uid is not None:
+            score_tbl = score_tbl.where(
+                ProblemModel.problem_uid == spec_problem_uid)
+
+        score_tbl = score_tbl.distinct(base_tbl.expr.c.problem_uid,
+            base_tbl.expr.c.index, base_tbl.expr.c.score).alias()
+
+        score = await (await select([func.sum(score_tbl.expr.c.score)], int)
+            .select_from(score_tbl)
+            .execute(ctx.conn)).scalar()
+        if score is None:
+            score = 0
+
+        return score

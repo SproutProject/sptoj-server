@@ -223,7 +223,7 @@ class GetHandler(APIHandler):
         '''Process the request.
 
         Args:
-            data (object: {})
+            data (object): {}
 
         Returns:
             {

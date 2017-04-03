@@ -258,3 +258,46 @@ class SubtaskInterface(Interface):
             self.metadata['result'] = subtask.metadata['result']
             self.metadata['runtime'] = subtask.metadata['runtime']
             self.metadata['memory'] = subtask.metadata['memory']
+
+
+class RankerInterface(Interface):
+    '''Ranker interface.'''
+
+    profile = Attribute()
+    rate = Attribute()
+    results = Attribute()
+
+    def __init__(self, data):
+        '''Initialize.
+
+        Args:
+            data (object): {
+                'user' (UserModel),
+                'rate' (int),
+                'results' ([(int, int)]),
+            }
+
+        '''
+
+        self.profile = ProfileInterface(data['user'])
+        self.rate = data['rate']
+        self.results = data['results']
+
+
+class RankInterface(Interface):
+    '''Rank view interface.'''
+
+    problems = Attribute()
+    rankers = Attribute()
+
+    def __init__(self, problems, rankers):
+        '''Initialize.
+
+        Args:
+            problems ([int]): Problem IDs.
+            rankders ([RankerInterface]): Rankders.
+
+        '''
+
+        self.problems = problems
+        self.rankers = rankers

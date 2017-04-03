@@ -330,3 +330,38 @@ async def get_list(offset=0, limit=None, user_uid=None, problem_uid=None,
         return { 'count': count, 'data': challenges }
     except:
         return None
+
+
+@model_context
+async def stat_result(user_uids, problem_uids, ctx=None):
+    '''Statistic results.
+
+    Args:
+        user_uids ([int]): Included User IDs.
+        problem_uids ([int]): Included Problem IDs.
+
+    Returns:
+        {(user_uid (int), problem_uid (int)): result (int), ...} | None
+
+    '''
+
+    query = (select([
+            UserModel.uid.label('user_uid'),
+            ProblemModel.uid.label('problem_uid'),
+            func.min(ChallengeModel.metadata['result']
+                .astext.cast(Integer)).label('result')
+        ])
+        .select_from(ChallengeModel.join(UserModel).join(ProblemModel))
+        .where(ChallengeModel.state == JudgeState.done)
+        .where(UserModel.uid.in_(user_uids))
+        .where(ProblemModel.uid.in_(problem_uids))
+        .group_by(UserModel.uid, ProblemModel.uid))
+
+    try:
+        ret_map = {}
+        async for result in await query.execute(ctx.conn):
+            ret_map[(result.user_uid, result.problem_uid)] = result.result
+
+        return ret_map
+    except:
+        return None
