@@ -274,7 +274,7 @@ class RankerInterface(Interface):
             data (object): {
                 'user' (UserModel),
                 'rate' (int),
-                'results' ([(int, int)]),
+                'results' ({ int: int, ... }),
             }
 
         '''
@@ -282,22 +282,3 @@ class RankerInterface(Interface):
         self.profile = ProfileInterface(data['user'])
         self.rate = data['rate']
         self.results = data['results']
-
-
-class RankInterface(Interface):
-    '''Rank view interface.'''
-
-    problems = Attribute()
-    rankers = Attribute()
-
-    def __init__(self, problems, rankers):
-        '''Initialize.
-
-        Args:
-            problems ([int]): Problem IDs.
-            rankders ([RankerInterface]): Rankders.
-
-        '''
-
-        self.problems = problems
-        self.rankers = rankers

@@ -345,6 +345,9 @@ async def stat_result(user_uids, problem_uids, ctx=None):
 
     '''
 
+    if len(user_uids) == 0 or len(problem_uids) == 0:
+        return {}
+
     query = (select([
             UserModel.uid.label('user_uid'),
             ProblemModel.uid.label('problem_uid'),
