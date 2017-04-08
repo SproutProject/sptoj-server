@@ -399,8 +399,20 @@ async def get_user_score(user, spec_problem_uid=None, spec_proset_uid=None,
 
     if user.category == UserCategory.algo:
         # Algo uses rate scoring.
+        base_tbl = (select([ProblemModel.uid])
+            .select_from(ProItemModel
+                .join(ProblemModel)
+                .join(ProSetModel)))
+
+        if spec_proset_uid is not None:
+            base_tbl = base_tbl.where(ProSetModel.uid == spec_proset_uid)
+
+        base_tbl = base_tbl.distinct(ProblemModel.uid).alias()
+
         query = (select([func.sum(RateScoreModel.score)], int)
-            .where(RateScoreModel.user_uid == user.uid))
+            .select_from(RateScoreModel)
+            .where(RateScoreModel.user_uid == user.uid)
+            .where(RateScoreModel.problem_uid.in_(base_tbl.expr)))
 
         if spec_problem_uid is not None:
             query = query.where(RateScoreModel.problem_uid == spec_problem_uid)

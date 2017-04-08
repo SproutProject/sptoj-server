@@ -13,7 +13,7 @@ import json
 import binascii
 import git
 import asyncio
-from model.user import UserLevel
+from model.user import UserLevel, UserCategory
 from .interface import *
 from . import APIHandler
 
@@ -226,10 +226,7 @@ class GetHandler(APIHandler):
             data (object): {}
 
         Returns:
-            {
-                'problem': ProblemInterface,
-                'rate': [ProblemRateInterface] optional
-            } | 'Error'
+            ProblemInterface | 'Error'
 
         '''
 
@@ -238,15 +235,37 @@ class GetHandler(APIHandler):
         if problem is None:
             return 'Error'
 
-        ret = { 'problem': ProblemInterface(problem) }
+        return ProblemInterface(problem)
 
-        if self.user is not None:
-            rate_list = await model.scoring.get_problem_rate(self.user.category,
-                problem.uid)
-            if rate_list is not None:
-                ret['rate'] = [ProblemRateInterface(rate) for rate in rate_list]
 
-        return ret
+class GetRateHandler(APIHandler):
+    '''Get problem rate handler.'''
+
+    async def process(self, uid, data):
+        '''Process the request.
+
+        Args:
+            data (object): {
+                'category' (int): The specific category.
+            }
+
+        Returns:
+            [ProblemRateInterface] | 'Error'
+
+        '''
+
+        uid = int(uid)
+        category = UserCategory(data['category'])
+
+        problem = await get_problem(self.user, uid)
+        if problem is None:
+            return 'Error'
+
+        rate_list = await model.scoring.get_problem_rate(category, problem.uid)
+        if rate_list is None:
+            return 'Error'
+
+        return [ProblemRateInterface(rate) for rate in rate_list]
 
 
 class StaticHandler(APIHandler):

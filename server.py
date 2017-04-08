@@ -38,6 +38,7 @@ def create_application(engine, redis_pool):
         (r'/problem/(\d+)/remove', view.problem.RemoveHandler, param),
         (r'/problem/list', view.problem.ListHandler, param),
         (r'/problem/(\d+)/get', view.problem.GetHandler, param),
+        (r'/problem/(\d+)/rate', view.problem.GetRateHandler, param),
         (r'/problem/(\d+)/static/(.*)', view.problem.StaticHandler, param),
         (r'/problem/(\d+)/submit', view.problem.SubmitHandler, param),
         (r'/proset/create', view.proset.CreateHandler, param),
