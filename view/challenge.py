@@ -49,7 +49,7 @@ async def emit_challenge(challenge, code_path):
         'res_path': res_path,
         'comp_type': problem.metadata['compile'],
         'check_type': problem.metadata['check'],
-        'metadata': {},
+        'metadata': problem.metadata.get('metadata', {}),
         'test': tests,
     }
 
